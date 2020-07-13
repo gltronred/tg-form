@@ -1,16 +1,12 @@
 -- | Types of all entities
 
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module TFB.Types where
 
-import Colog (LogAction, HasLog(..), Message)
-import Control.Monad.Reader
 import Data.Aeson
 import Data.Map.Strict (Map,empty)
 import Data.Text (Text)
@@ -89,6 +85,7 @@ instance ToJSON FormConfig where
 
 data Config = Config
   { cfgConnection :: String
+  , cfgPoolSize :: Maybe Int
   , cfgGeoFile :: Maybe FilePath
   , cfgToken :: Text
   } deriving (Eq,Show,Generic)
@@ -101,10 +98,10 @@ instance ToJSON Config where
 data State
   = NotStarted
   | PreparingSheet
-    { stSrc :: Text
+    { stSrc :: UserId
     }
   | Answered
-    { stSrc :: Text
+    { stSrc :: UserId
     , stForm :: FormConfig
     , stCurrent :: Int
     , stAnswers :: Map Text FieldVal
@@ -121,10 +118,11 @@ getAnswers _ = empty
 
 data Action
   = NoOp
-  | Start (Maybe Text)
+  | Start (Maybe Text) UserId
   | Help
   | Ans Text
-  | GoForm FormConfig
+  | Parsed FieldDef FieldVal
+  | GoForm FormConfig UserId
   | AskCurrent
   deriving (Read,Show)
 
@@ -137,17 +135,3 @@ jsonOpts m k = defaultOptions
   { fieldLabelModifier = camelTo2 '-' . drop k
   , constructorTagModifier = camelTo2 '-' . drop m
   }
-
-data Env m = Env
-  { envLogger :: LogAction m Message
-  , envConn :: ()
-  , envConfig :: Config
-  }
-
-instance HasLog (Env m) Message m where
-  getLogAction = envLogger
-  {-# INLINE getLogAction #-}
-  setLogAction new env = env { envLogger = new }
-  {-# INLINE setLogAction #-}
-
-newtype BotM msg = BotM { runBotM :: ReaderT (Env BotM) IO () }

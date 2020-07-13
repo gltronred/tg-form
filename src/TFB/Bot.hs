@@ -9,15 +9,17 @@
 module TFB.Bot where
 
 import TFB.Types
+import TFB.Env
+import TFB.Db
 import TFB.Sheets
 
+import Colog (simpleMessageAction)
 import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
-import Data.List (find)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe
@@ -25,7 +27,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Read
 import Data.Time.Clock.POSIX
-import GHC.Float (float2Double)
 import System.Exit
 import Telegram.Bot.API
 import Telegram.Bot.Simple
@@ -56,13 +57,12 @@ plaintext = do
 
 updateToAction :: State -> Update -> Maybe Action
 updateToAction NotStarted = parseUpdate $
-      Start Nothing <$ cmd "start"
+      (\_ u -> Start Nothing u) <$> cmd "start" <*> user
   <|> Help <$ cmd "help"
-  <|> callbackQueryDataRead
+  <|> (\c u -> Start (Just c) u) <$> callbackQueryDataRead <*> user
 updateToAction _st = parseUpdate $
       Help <$ cmd "help"
   <|> Ans <$> plaintext
-  <|> callbackQueryDataRead
 
 (!?) :: [a] -> Int -> Maybe a
 (!?) [] _ = Nothing
@@ -83,8 +83,8 @@ addAnswer field olds txt = case parseFieldVal (fdType field) txt of
   Left e -> Left e
   Right v -> Right $ M.insert (fdName field) v olds
 
-mkQuestion :: FieldDef -> ReplyMessage
-mkQuestion field = toReplyMessage (fdDesc field)
+mkQuestion :: FieldDef -> Either FieldVal ReplyMessage
+mkQuestion field = Right $ toReplyMessage (fdDesc field)
   -- where
   --   regKeyboard = ReplyKeyboardMarkup
   --     { replyKeyboardMarkupKeyboard =
@@ -94,28 +94,29 @@ mkQuestion field = toReplyMessage (fdDesc field)
   --     , replyKeyboardMarkupSelective = Nothing
   --     }
 
-handleAction :: Config -> TBQueue MsgItem -> Action -> State -> Eff Action State
-handleAction cfg mq act st@NotStarted = case act of
+handleAction :: Env TFB -> Action -> State -> Eff Action State
+handleAction Env{ envConfig=cfg, envQueue=mq } act st@NotStarted = case act of
   NoOp -> pure st
-  Start Nothing -> st <# do
+  Start Nothing u -> st <# do
     -- prepare sheet here!
     reply (toReplyMessage "Welcome!")
     pure NoOp
-  Start (Just code) -> st <# do
+  Start (Just code) u -> st <# do
     -- get form here!
+    let form = undefined
     reply (toReplyMessage "Some questions")
-    pure $ NoOp
-  GoForm form -> pure $ Answered
-    { stSrc = ""
+    pure $ GoForm form u
+  GoForm form u -> pure $ Answered
+    { stSrc = u
     , stForm = form
     , stCurrent = 0
     , stAnswers = M.empty
     }
   -- Help and others
   _ -> st <# do
-    reply $ toReplyMessage $ botUsage cfg
+    reply $ toReplyMessage $ botUsage cfg Nothing
     pure NoOp
-handleAction cfg mq act st@Answered{ stForm=form, stCurrent=current, stAnswers=olds } = case act of
+handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stCurrent=current } = case act of
   NoOp -> pure st
   AskCurrent -> let
     mfield = cfgFields form !? current
@@ -124,32 +125,36 @@ handleAction cfg mq act st@Answered{ stForm=form, stCurrent=current, stAnswers=o
            reply $ toReplyMessage $ cfgThanks form
            pure NoOp
          Just field -> st <# do
-           reply $ mkQuestion field
-           pure NoOp
+           let q = mkQuestion field
+           case q of
+             Left v -> pure $ Parsed field v
+             Right t -> reply t >> pure NoOp
+  Parsed field v -> let
+    k = fdName field
+    ans = M.insert k v $ stAnswers st
+    idx = current + 1
+    st' = st { stCurrent = idx, stAnswers = ans }
+    in st' <# do
+      when (idx >= length (cfgFields form)) $ do
+        liftIO $ atomically $ writeTBQueue mq $ MsgInfo ans
+      pure AskCurrent
   Ans t -> let
     mfield = cfgFields form !? current
     in case mfield of
          Nothing -> pure NotStarted
-         Just field -> case addAnswer field (getAnswers st) t of
+         Just field -> case parseFieldVal (fdType field) t of
            Left err -> st <# do
              reply (toReplyMessage $ T.pack err)
              pure AskCurrent
-           Right ans -> let
-             idx = current + 1
-             st' = if idx < length (cfgFields form)
-                   then st { stCurrent = idx, stAnswers = ans }
-                   else NotStarted
-             in st' <# do
-               when (st' == NotStarted) $ do
-                 liftIO $ atomically $ writeTBQueue mq $ MsgInfo ans
-               pure AskCurrent
+           Right v -> st <# do
+             pure $ Parsed field v
   -- Help and others
   _ -> st <# do
-    reply $ toReplyMessage $ botUsage cfg
+    reply $ toReplyMessage $ botUsage cfg $ Just form
     pure NoOp
 
-botUsage :: Config -> Text
-botUsage cfg = T.concat $
+botUsage :: Config -> Maybe FormConfig -> Text
+botUsage cfg form = T.concat $
   [ "This bot collects statistics and writes it into Google Sheets\n\n"
   , "Your telegram user "
   , "\n"
@@ -167,20 +172,28 @@ botUsage cfg = T.concat $
     mkTypeDesc FieldNum = "floating point number"
     mkTypeDesc FieldText = "text"
 
-collectBot :: Config -> TBQueue MsgItem -> BotApp State Action
-collectBot cfg mq = BotApp
+collectBot :: Env TFB -> BotApp State Action
+collectBot env = BotApp
   { botInitialModel = initialModel
   , botAction = flip updateToAction
-  , botHandler = handleAction cfg mq
+  , botHandler = handleAction env
   , botJobs = []
   }
 
 run :: Config -> IO ()
-run cfg@Config{ cfgToken = token } = do
+run cfg@Config{ cfgToken=token
+              , cfgConnection=connStr
+              , cfgPoolSize=msz
+              } = withDb connStr (fromMaybe 10 msz) $ \conn -> do
   mq <- newTBQueueIO 1000
-  _ <- forkIO $ sheetWorker cfg mq
+  let environ = Env { envLogger = simpleMessageAction
+                    , envConn = conn
+                    , envQueue = mq
+                    , envConfig = cfg
+                    }
+  _ <- forkIO $ sheetWorker environ
   env <- defaultTelegramClientEnv $ Token token
-  startBot_ (conversationBot updateChatId $ collectBot cfg mq) env
+  startBot_ (conversationBot updateChatId $ collectBot environ) env
 
 readConfigOrDie :: FilePath -> IO Config
 readConfigOrDie cfgFile = do

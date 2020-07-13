@@ -5,6 +5,7 @@
 module TFB.Sheets where
 
 import TFB.Types (FieldType(..), FieldVal(..), Config(..), MsgItem(..))
+import TFB.Env (TFB,Env(Env,envConfig,envQueue))
 
 import Control.Concurrent.STM
 import Control.Lens
@@ -20,11 +21,11 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as ET
 import Network.Google.Sheets
-import Network.Google
+import Network.Google hiding (Env)
 import System.IO (stdout)
 
-sheetWorker :: Config -> TBQueue MsgItem -> IO ()
-sheetWorker cfg mq = do
+sheetWorker :: Env TFB -> IO ()
+sheetWorker Env{ envConfig=cfg, envQueue=mq } = do
   forever $ do
     let sheetId = "TODO"
     msg <- atomically $ readTBQueue mq

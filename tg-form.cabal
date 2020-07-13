@@ -20,6 +20,7 @@ library
   exposed-modules:     TFB.Types
                      , TFB.Bot
                      , TFB.Db
+                     , TFB.Env
                      , TFB.Sheets
   -- other-modules:
   -- other-extensions:
@@ -37,6 +38,7 @@ library
                      , groundhog-th >=0.11
                      , lens >=4.19
                      , mtl >=2.2
+                     , resource-pool >=0.2
                      , stm >=2.5
                        -- gogol =0.5 requires servant <0.17, but doesn't specifies upper bound
                      , servant <0.17
