@@ -1,22 +1,42 @@
 -- | Types of all entities
 
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StrictData #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module TFB.Types where
 
+import Colog (LogAction, HasLog(..), Message)
+import Control.Monad.Reader
 import Data.Aeson
 import Data.Map.Strict (Map,empty)
 import Data.Text (Text)
 import GHC.Generics
 import Telegram.Bot.API.Types (UserId(..))
 
+data LocPrecision
+  = PrecCoord
+  | PrecCity
+  | PrecMunicip
+  | PrecRegion
+  deriving (Eq,Show,Read,Generic)
+
+instance FromJSON LocPrecision where
+  parseJSON = genericParseJSON $ jsonOpts 4 0
+instance ToJSON LocPrecision where
+  toEncoding = genericToEncoding $ jsonOpts 4 0
+
 data FieldType
-  = FieldInt -- OpType
-  | FieldFloat -- OpType
+  = FieldInt
+  | FieldNum
   | FieldText
+  | FieldEnum [[Text]]
+  | FieldLocation LocPrecision
+  | FieldTime
+  | FieldSource
   deriving (Eq,Show,Read,Generic)
 
 instance FromJSON FieldType where
@@ -28,10 +48,12 @@ deriving instance Read UserId
 
 data FieldVal
   = ValInt Int
-  | ValFloat Double
+  | ValNum Double
   | ValText Text
+  | ValEnum Text
+  | ValLocation (Double, Double)
   | ValTime Int
-  | ValUser Text
+  | ValUser UserId
   deriving (Eq,Show,Read,Generic)
 
 instance FromJSON FieldVal where
@@ -50,49 +72,25 @@ instance FromJSON FieldDef where
 instance ToJSON FieldDef where
   toEncoding = genericToEncoding $ jsonOpts 5 2
 
-data QuestionDef = QuestionDef
-  { qdText :: Text
-  , qdAnswer :: [Text]
-  , qdError :: Maybe Text
+data FormConfig = FormConfig
+  { cfgCode :: Text
+  , cfgConfigSheet :: Text
+  , cfgResultSheet :: Text
+  , cfgAuthor :: UserId
+  , cfgWelcome :: Text
+  , cfgThanks :: Text
+  , cfgFields :: [FieldDef]
   } deriving (Eq,Show,Read,Generic)
 
-instance FromJSON QuestionDef where
-  parseJSON = genericParseJSON $ jsonOpts 8 2
-instance ToJSON QuestionDef where
-  toEncoding = genericToEncoding $ jsonOpts 8 2
-
-data BotCfg = BotCfg
-  { bcToken :: Text
-  } deriving (Eq,Show,Generic)
-
-instance FromJSON BotCfg where
-  parseJSON = genericParseJSON $ jsonOpts 3 2
-instance ToJSON BotCfg where
-  toEncoding = genericToEncoding $ jsonOpts 3 2
-
-data TargetCfg = TargetCfg
-  { tcSheets :: Text
-  } deriving (Eq,Show,Read,Generic)
-
-instance FromJSON TargetCfg where
-  parseJSON = genericParseJSON $ jsonOpts 6 2
-instance ToJSON TargetCfg where
-  toEncoding = genericToEncoding $ jsonOpts 6 2
+instance FromJSON FormConfig where
+  parseJSON = genericParseJSON $ jsonOpts 10 3
+instance ToJSON FormConfig where
+  toEncoding = genericToEncoding $ jsonOpts 10 3
 
 data Config = Config
-  { cfgTimeField :: Text
-  , cfgSourceField :: Text
-  , cfgFields :: [FieldDef]
-  , cfgGeoFile :: FilePath
-  , cfgWelcome :: Text
-  , cfgRegisterButton :: Maybe Text
-  , cfgRegisterAnswer :: Maybe Text
-  , cfgTrustAnswer :: Maybe Text
-  , cfgLocationText :: Maybe Text
-  , cfgQuestions :: [QuestionDef]
-  , cfgBot :: BotCfg
-  , cfgTargets :: TargetCfg
-  , cfgResult :: Text
+  { cfgConnection :: String
+  , cfgGeoFile :: Maybe FilePath
+  , cfgToken :: Text
   } deriving (Eq,Show,Generic)
 
 instance FromJSON Config where
@@ -100,13 +98,14 @@ instance FromJSON Config where
 instance ToJSON Config where
   toEncoding = genericToEncoding $ jsonOpts 6 3
 
-getFieldNames :: Config -> [Text]
-getFieldNames cfg = cfgTimeField cfg : cfgSourceField cfg : map fdName (cfgFields cfg)
-
 data State
   = NotStarted
+  | PreparingSheet
+    { stSrc :: Text
+    }
   | Answered
     { stSrc :: Text
+    , stForm :: FormConfig
     , stCurrent :: Int
     , stAnswers :: Map Text FieldVal
     }
@@ -120,9 +119,17 @@ getAnswers :: State -> Map Text FieldVal
 getAnswers Answered{ stAnswers=m } = m
 getAnswers _ = empty
 
+data Action
+  = NoOp
+  | Start (Maybe Text)
+  | Help
+  | Ans Text
+  | GoForm FormConfig
+  | AskCurrent
+  deriving (Read,Show)
+
 data MsgItem
   = MsgInfo (Map Text FieldVal)
-  | MsgTrust (Int, Text, Text)
   deriving (Eq,Show,Read,Generic)
 
 jsonOpts :: Int -> Int -> Options
@@ -130,3 +137,17 @@ jsonOpts m k = defaultOptions
   { fieldLabelModifier = camelTo2 '-' . drop k
   , constructorTagModifier = camelTo2 '-' . drop m
   }
+
+data Env m = Env
+  { envLogger :: LogAction m Message
+  , envConn :: ()
+  , envConfig :: Config
+  }
+
+instance HasLog (Env m) Message m where
+  getLogAction = envLogger
+  {-# INLINE getLogAction #-}
+  setLogAction new env = env { envLogger = new }
+  {-# INLINE setLogAction #-}
+
+newtype BotM msg = BotM { runBotM :: ReaderT (Env BotM) IO () }

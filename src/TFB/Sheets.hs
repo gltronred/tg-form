@@ -4,7 +4,7 @@
 
 module TFB.Sheets where
 
-import TFB.Types
+import TFB.Types (FieldType(..), FieldVal(..), Config(..), MsgItem(..))
 
 import Control.Concurrent.STM
 import Control.Lens
@@ -26,15 +26,14 @@ import System.IO (stdout)
 sheetWorker :: Config -> TBQueue MsgItem -> IO ()
 sheetWorker cfg mq = do
   forever $ do
-    let sheetId = tcSheets $ cfgTargets cfg
-        theBot = cfgBot cfg
+    let sheetId = "TODO"
     msg <- atomically $ readTBQueue mq
     case msg of
       MsgInfo ans -> appendRow cfg sheetId ans
 
 appendRow :: Config -> Text -> Map Text FieldVal -> IO Text
 appendRow cfg sheetId ans = do
-  let fields = getFieldNames cfg
+  let fields = [] -- getFieldNames cfg
       orderedAns = map (ans M.!) fields
   appendGS sheetId "raw" orderedAns
 
@@ -63,7 +62,7 @@ encodeVals vals = do
 
 toJV :: FieldVal -> IO [Value]
 toJV (ValInt n) = pure $ pure $ toJSON n
-toJV (ValFloat d) = pure $ pure $ toJSON d
+toJV (ValNum d) = pure $ pure $ toJSON d
 toJV (ValText t) = pure $ pure $ toJSON t
 toJV (ValTime ts) = pure $ pure $ toJSON ts
 toJV (ValUser u) = pure $ pure $ toJSON u

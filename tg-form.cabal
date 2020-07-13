@@ -19,6 +19,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     TFB.Types
                      , TFB.Bot
+                     , TFB.Db
                      , TFB.Sheets
   -- other-modules:
   -- other-extensions:
@@ -26,10 +27,16 @@ library
                      , aeson >=1.4
                      , bytestring >=0.10
                      , cassava >=0.5
+                     , co-log >=0.4
                      , containers >=0.6
                      , gogol >=0.5
                      , gogol-sheets >=0.5
+                     , groundhog >=0.11
+                     , groundhog-converters >=0.1
+                     , groundhog-sqlite >=0.11
+                     , groundhog-th >=0.11
                      , lens >=4.19
+                     , mtl >=2.2
                      , stm >=2.5
                        -- gogol =0.5 requires servant <0.17, but doesn't specifies upper bound
                      , servant <0.17
@@ -39,6 +46,7 @@ library
                      , vector >=0.12
   hs-source-dirs:      src
   default-language:    Haskell2010
+  ghc-options:         -Wall
 
 executable tg-form-bot
   main-is:             BotMain.hs
@@ -50,3 +58,4 @@ executable tg-form-bot
                      , text
   hs-source-dirs:      app
   default-language:    Haskell2010
+  ghc-options:         -threaded -Wall
