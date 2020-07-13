@@ -1,12 +1,12 @@
 module Main where
 
-import CEC.Bot
+import TFB.Bot
 
 import System.Environment
 
 usage :: IO ()
 usage = do
-  putStrLn "Usage: tgcec <config.json>"
+  putStrLn "Usage: tg-form-bot <config.json>"
 
 main :: IO ()
 main = do
