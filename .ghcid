@@ -1,0 +1,1 @@
+-c "cabal v2-repl --ghc-options=-fno-break-on-exception --ghc-options=-fno-break-on-error --ghc-options=-v1 --ghc-options=-ferror-spans --ghc-options=-j"
