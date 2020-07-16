@@ -1,5 +1,6 @@
 -- | Main telegram bot module
 
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StrictData #-}
@@ -20,6 +21,7 @@ import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
+import Data.List (find)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe
@@ -57,7 +59,7 @@ plaintext = do
 
 updateToAction :: State -> Update -> Maybe Action
 updateToAction NotStarted = parseUpdate $
-      (\_ u -> Start Nothing u) <$> cmd "start" <*> user
+      (\c u -> Start (if T.null c then Nothing else Just c) u) <$> cmd "start" <*> user
   <|> Help <$ cmd "help"
   <|> (\c u -> Start (Just c) u) <$> callbackQueryDataRead <*> user
 updateToAction _st = parseUpdate $
@@ -77,45 +79,75 @@ parseFieldVal field txt = case field of
   FieldInt -> ValInt <$> runParser decimal txt
   FieldNum -> ValNum <$> runParser double txt
   FieldText -> Right $ ValText txt
+  FieldEnum lopts -> case find (==txt) $ concat lopts of
+    Nothing -> Left "Please, choose one of provided options"
+    Just v  -> Right $ ValEnum v
+  FieldLocation _prec -> Left "TODO: implement parsing location"
+  FieldTime -> Left "Something went wrong: should not parse current time"
+  FieldSource -> Left "Something went wrong: should not parse your user id"
 
 addAnswer :: FieldDef -> Map Text FieldVal -> Text -> Either String (Map Text FieldVal)
 addAnswer field olds txt = case parseFieldVal (fdType field) txt of
   Left e -> Left e
   Right v -> Right $ M.insert (fdName field) v olds
 
-mkQuestion :: FieldDef -> Either FieldVal ReplyMessage
-mkQuestion field = Right $ toReplyMessage (fdDesc field)
-  -- where
-  --   regKeyboard = ReplyKeyboardMarkup
-  --     { replyKeyboardMarkupKeyboard =
-  --       [ [ KeyboardButton regButtonName Nothing (Just True) ] ]
-  --     , replyKeyboardMarkupResizeKeyboard = Just True
-  --     , replyKeyboardMarkupOneTimeKeyboard = Just True
-  --     , replyKeyboardMarkupSelective = Nothing
-  --     }
+mkQuestion :: FieldDef -> IO (Either FieldVal ReplyMessage)
+mkQuestion field = case fdType field of
+  FieldTime -> Left . ValTime . round <$> getPOSIXTime
+  FieldSource -> pure $ Left $ ValUser $ undefined
+  FieldLocation prec -> pure $ Right msg { replyMessageReplyMarkup = Just $ locKbd prec }
+  _ -> pure $ Right msg
+  where
+    msg = toReplyMessage (fdDesc field)
+    locKbd prec = SomeReplyKeyboardMarkup $ ReplyKeyboardMarkup
+      { replyKeyboardMarkupKeyboard =
+        [ [ KeyboardButton (locBtn prec) Nothing (Just True) ] ]
+      , replyKeyboardMarkupResizeKeyboard = Just True
+      , replyKeyboardMarkupOneTimeKeyboard = Just True
+      , replyKeyboardMarkupSelective = Nothing
+      }
+    locBtn = ("Send my " <> ) . \case
+      PrecCoord -> "coordinates"
+      PrecCity -> "city"
+      PrecMunicip -> "municipality"
+      PrecRegion -> "region"
 
 handleAction :: Env TFB -> Action -> State -> Eff Action State
-handleAction Env{ envConfig=cfg, envQueue=mq } act st@NotStarted = case act of
+handleAction env@Env{ envConfig=cfg } act st@NotStarted = case act of
   NoOp -> pure st
   Start Nothing u -> st <# do
     -- prepare sheet here!
-    reply (toReplyMessage "Welcome!")
+    reply $ toReplyMessage addNewFormText
     pure NoOp
   Start (Just code) u -> st <# do
     -- get form here!
-    let form = undefined
-    reply (toReplyMessage "Some questions")
-    pure $ GoForm form u
-  GoForm form u -> pure $ Answered
+    let conn = envConn env
+    mform <- liftIO $ loadForm code conn
+    case mform of
+      Nothing -> do
+        reply $ toReplyMessage "Form not found!"
+        pure NoOp
+      Just form -> do
+        reply (toReplyMessage $ cfgWelcome form)
+        pure $ GoForm form u
+  GoForm form u -> Answered
     { stSrc = u
     , stForm = form
     , stCurrent = 0
     , stAnswers = M.empty
-    }
-  -- Help and others
-  _ -> st <# do
-    reply $ toReplyMessage $ botUsage cfg Nothing
-    pure NoOp
+    } <# do
+    pure AskCurrent
+  -- Cancel and Stop
+  Cancel -> become NotStarted
+  Stop -> become NotStarted
+  -- Help and wrong commands
+  Parsed _ _ -> usage cfg st Nothing
+  AskCurrent -> usage cfg st Nothing
+  Ans _ -> usage cfg st Nothing
+  Help -> usage cfg st Nothing
+handleAction env@Env{ envConfig=cfg } act st@PreparingSheet{} = case act of
+  NoOp -> pure st
+  Help -> usage cfg st Nothing
 handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stCurrent=current } = case act of
   NoOp -> pure st
   AskCurrent -> let
@@ -125,7 +157,7 @@ handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stC
            reply $ toReplyMessage $ cfgThanks form
            pure NoOp
          Just field -> st <# do
-           let q = mkQuestion field
+           q <- liftIO $ mkQuestion field
            case q of
              Left v -> pure $ Parsed field v
              Right t -> reply t >> pure NoOp
@@ -149,13 +181,30 @@ handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stC
            Right v -> st <# do
              pure $ Parsed field v
   -- Help and others
-  _ -> st <# do
-    reply $ toReplyMessage $ botUsage cfg $ Just form
-    pure NoOp
+  Help -> usage cfg st $ Just form
+
+usage cfg st mform = st <# do
+  reply $ toReplyMessage $ botUsage cfg mform
+  pure NoOp
+
+become st = st <# do
+  reply $ toReplyMessage "Cancelling all your answers so far"
+  pure NoOp
+
+addNewFormText :: Text
+addNewFormText = T.intercalate "\n"
+  [ "To add a new form please do the following steps (see <...TODO...> for manual):"
+  , "1. Create a spreadsheet with configuration and result sheets"
+  , "2. Share your spreadsheet with demo-bot@...TODO..."
+  , "3. Send me the address of this spreadsheet"
+  , ""
+  , "Remember that Google limits the number of API calls, so free usage is limited"
+  , "Consult <https://sr.ht/~rd/tg-form...TODO...> for details and upgrading to paid account"
+  ]
 
 botUsage :: Config -> Maybe FormConfig -> Text
 botUsage cfg form = T.concat $
-  [ "This bot collects statistics and writes it into Google Sheets\n\n"
+  [ "This bot collects answers and writes it into Google Sheets\n\n"
   , "Your telegram user "
   , "\n"
   , "Bot also saves time and your approximate location\n\n"

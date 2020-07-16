@@ -118,9 +118,11 @@ getAnswers _ = empty
 
 data Action
   = NoOp
-  | Start (Maybe Text) UserId
-  | Help
-  | Ans Text
+  | Start (Maybe Text) UserId -- /start [<code>] - starts form <code> or preparing (no code)
+  | Help                      -- /help
+  | Ans Text                  -- <text> - give answer <text> to current question
+  | Cancel                    -- /cancel - remove current answers and restart form
+  | Stop                      -- /stop - remove current answers and wait for start (to change form or create new form)
   | Parsed FieldDef FieldVal
   | GoForm FormConfig UserId
   | AskCurrent

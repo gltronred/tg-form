@@ -8,7 +8,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module TFB.Db where
+module TFB.Db
+  ( runDbConn
+  , withDb
+  , loadForm
+  , saveForm
+  ) where
 
 import TFB.Types
 import TFB.Env
