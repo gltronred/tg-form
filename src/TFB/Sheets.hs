@@ -29,6 +29,7 @@ sheetWorker Env{ envConfig=cfg, envQueue=mq } = do
   forever $ do
     let sheetId = "TODO"
     msg <- atomically $ readTBQueue mq
+    print msg
     case msg of
       MsgInfo ans -> appendRow cfg sheetId ans
 
