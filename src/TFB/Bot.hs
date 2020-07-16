@@ -95,17 +95,22 @@ mkQuestion :: FieldDef -> IO (Either FieldVal ReplyMessage)
 mkQuestion field = case fdType field of
   FieldTime -> Left . ValTime . round <$> getPOSIXTime
   FieldSource -> pure $ Left $ ValUser $ undefined
-  FieldLocation prec -> pure $ Right msg { replyMessageReplyMarkup = Just $ locKbd prec }
-  _ -> pure $ Right msg
+  FieldLocation prec -> pure $ Right msg { replyMessageReplyMarkup = mkKbd $ locKbd prec }
+  FieldEnum opts -> pure $ Right msg { replyMessageReplyMarkup = mkKbd $ optKbd opts }
+  FieldInt -> pure $ Right msg
+  FieldNum -> pure $ Right msg
+  FieldText -> pure $ Right msg
   where
     msg = toReplyMessage (fdDesc field)
-    locKbd prec = SomeReplyKeyboardMarkup $ ReplyKeyboardMarkup
-      { replyKeyboardMarkupKeyboard =
-        [ [ KeyboardButton (locBtn prec) Nothing (Just True) ] ]
+    mkKbd kbd = Just $ SomeReplyKeyboardMarkup $ ReplyKeyboardMarkup
+      { replyKeyboardMarkupKeyboard = kbd
       , replyKeyboardMarkupResizeKeyboard = Just True
       , replyKeyboardMarkupOneTimeKeyboard = Just True
       , replyKeyboardMarkupSelective = Nothing
       }
+    optKbd = map optKbdRow
+    optKbdRow = map (\t -> KeyboardButton t Nothing Nothing)
+    locKbd prec = [ [ KeyboardButton (locBtn prec) Nothing (Just True) ] ]
     locBtn = ("Send my " <> ) . \case
       PrecCoord -> "coordinates"
       PrecCity -> "city"
