@@ -20,7 +20,6 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson
 import Data.List (find)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -29,7 +28,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Read
 import Data.Time.Clock.POSIX
-import System.Exit
 import Telegram.Bot.API
 import Telegram.Bot.Simple
 import Telegram.Bot.Simple.UpdateParser
@@ -91,10 +89,10 @@ addAnswer field olds txt = case parseFieldVal (fdType field) txt of
   Left e -> Left e
   Right v -> Right $ M.insert (fdName field) v olds
 
-mkQuestion :: FieldDef -> IO (Either FieldVal ReplyMessage)
-mkQuestion field = case fdType field of
+mkQuestion :: FieldDef -> UserId -> IO (Either FieldVal ReplyMessage)
+mkQuestion field uid = case fdType field of
   FieldTime -> Left . ValTime . round <$> getPOSIXTime
-  FieldSource -> pure $ Left $ ValUser $ undefined
+  FieldSource -> pure $ Left $ ValUser uid
   FieldLocation prec -> pure $ Right msg { replyMessageReplyMarkup = mkKbd $ locKbd prec }
   FieldEnum opts -> pure $ Right msg { replyMessageReplyMarkup = mkKbd $ optKbd opts }
   FieldInt -> pure $ Right msg
@@ -162,7 +160,7 @@ handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stC
            reply $ toReplyMessage $ cfgThanks form
            pure NoOp
          Just field -> st <# do
-           q <- liftIO $ mkQuestion field
+           q <- liftIO $ mkQuestion field $ stSrc st
            case q of
              Left v -> pure $ Parsed field v
              Right t -> reply t >> pure NoOp
@@ -189,7 +187,7 @@ handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stC
   Help -> usage cfg st $ Just form
 
 usage cfg st mform = st <# do
-  reply $ toReplyMessage $ botUsage cfg mform
+  reply $ toReplyMessage $ botUsage cfg st mform
   pure NoOp
 
 become st = st <# do
@@ -198,17 +196,18 @@ become st = st <# do
 
 addNewFormText :: Text
 addNewFormText = T.intercalate "\n"
-  [ "To add a new form please do the following steps (see <...TODO...> for manual):"
+  [ "To add a new form please do the following:"
+  , "(see <...TODO...> for full manual)"
   , "1. Create a spreadsheet with configuration and result sheets"
   , "2. Share your spreadsheet with demo-bot@...TODO..."
   , "3. Send me the address of this spreadsheet"
   , ""
-  , "Remember that Google limits the number of API calls, so free usage is limited"
+  , "Remember that Google limits the number of API calls"
   , "Consult <https://sr.ht/~rd/tg-form...TODO...> for details and upgrading to paid account"
   ]
 
-botUsage :: Config -> Maybe FormConfig -> Text
-botUsage cfg form = T.concat $
+botUsage :: Config -> State -> Maybe FormConfig -> Text
+botUsage cfg st form = T.concat $
   [ "This bot collects answers and writes it into Google Sheets\n\n"
   , "Your telegram user "
   , "\n"
@@ -216,6 +215,7 @@ botUsage cfg form = T.concat $
   , "Author provided the following description: \n"
   , "\n"
   , "Questions asked and statistics collected:\n"
+  , T.pack $ show st
   ]
   where
     mkFieldDesc :: Map Text FieldDef -> Text -> Text
@@ -248,10 +248,3 @@ run cfg@Config{ cfgToken=token
   _ <- forkIO $ sheetWorker environ
   env <- defaultTelegramClientEnv $ Token token
   startBot_ (conversationBot updateChatId $ collectBot environ) env
-
-readConfigOrDie :: FilePath -> IO Config
-readConfigOrDie cfgFile = do
-  ecfg <- eitherDecodeFileStrict cfgFile
-  case ecfg of
-    Left err -> die err
-    Right cfg -> pure cfg
