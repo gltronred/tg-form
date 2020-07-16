@@ -20,6 +20,7 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Bits
 import Data.List (find)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -83,7 +84,7 @@ mkQuestion field uid = case fdType field of
       PrecRegion -> "region"
 
 handleAction :: Env TFB -> Action -> State -> Eff Action State
-handleAction env@Env{ envConfig=cfg } act st@NotStarted = case act of
+handleAction env@Env{ } act st@NotStarted = case act of
   NoOp -> pure st
   Start Nothing u -> st <# do
     -- prepare sheet here!
@@ -111,14 +112,22 @@ handleAction env@Env{ envConfig=cfg } act st@NotStarted = case act of
   Cancel -> become NotStarted
   Stop -> become NotStarted
   -- Help and wrong commands
-  Parsed _ _ -> usage cfg st Nothing
-  AskCurrent -> usage cfg st Nothing
-  Ans _ -> usage cfg st Nothing
-  Help -> usage cfg st Nothing
-handleAction env@Env{ envConfig=cfg } act st@PreparingSheet{} = case act of
+  Help -> usage st Nothing
+  Ans _ -> usage st Nothing
+  Parsed _ _ -> usage st Nothing
+  AskCurrent -> usage st Nothing
+handleAction env@Env{ } act st@PreparingSheet{} = case act of
   NoOp -> pure st
-  Help -> usage cfg st Nothing
-handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stCurrent=current } = case act of
+  -- Cancel and stop
+  Cancel -> become NotStarted
+  Stop -> become NotStarted
+  -- Help and wrong commands
+  Help -> usage st Nothing
+  Start _ _ -> usage st Nothing
+  GoForm _ _ -> usage st Nothing
+  Parsed _ _ -> usage st Nothing
+  AskCurrent -> usage st Nothing
+handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current } = case act of
   NoOp -> pure st
   AskCurrent -> let
     mfield = cfgFields form !? current
@@ -150,13 +159,20 @@ handleAction Env{ envConfig=cfg, envQueue=mq } act st@Answered{ stForm=form, stC
              pure AskCurrent
            Right v -> st <# do
              pure $ Parsed field v
-  -- Help and others
-  Help -> usage cfg st $ Just form
+  -- Cancel and stop
+  Cancel -> become $ st { stCurrent = 0, stAnswers = M.empty }
+  Stop -> become NotStarted
+  -- Help and wrong commands
+  Help -> usage st $ Just form
+  Start _ _ -> usage st $ Just form
+  GoForm _ _ -> usage st $ Just form
 
-usage cfg st mform = st <# do
-  reply $ toReplyMessage $ botUsage cfg st mform
+usage :: State -> Maybe FormConfig -> Eff Action State
+usage st mform = st <# do
+  reply $ toReplyMessage $ botUsage st mform
   pure NoOp
 
+become :: State -> Eff Action State
 become st = st <# do
   reply $ toReplyMessage "Cancelling all your answers so far"
   pure NoOp
@@ -173,25 +189,48 @@ addNewFormText = T.intercalate "\n"
   , "Consult <https://sr.ht/~rd/tg-form...TODO...> for details and upgrading to paid account"
   ]
 
-botUsage :: Config -> State -> Maybe FormConfig -> Text
-botUsage cfg st form = T.concat $
-  [ "This bot collects answers and writes it into Google Sheets\n\n"
-  , "Your telegram user "
-  , "\n"
-  , "Bot also saves time and your approximate location\n\n"
-  , "Author provided the following description: \n"
-  , "\n"
-  , "Questions asked and statistics collected:\n"
-  , T.pack $ show st
-  ]
+botUsage :: State -> Maybe FormConfig -> Text
+botUsage st mform = T.intercalate "\n" $
+  [ "This bot collects answers and writes it into Google Sheets"
+  , ""
+  , "You can create your own form: see <...TODO...> for full manual"
+  , ""
+  ] ++ stateDesc st ++ maybe [""] (formDesc $ getAnswers st) mform
   where
-    mkFieldDesc :: Map Text FieldDef -> Text -> Text
-    mkFieldDesc fields name = let
-      field = fields M.! name
-      in T.concat [ " + ", name, " - ", fdDesc field, " - ", mkTypeDesc $ fdType field, "\n" ]
+    stateDesc :: State -> [Text]
+    stateDesc NotStarted = "You have not started working with bot" : cmds 0
+    stateDesc PreparingSheet{} = "You are preparing your form" : cmds 3
+    stateDesc Answered{} = "You are filling form" : cmds 2
+    cmds :: Int -> [Text]
+    cmds k = map snd $ filter ((`testBit` k) . fst)
+      [ ((7 :: Int), "Available commands: ")
+      , (1, "- /start - to start creating form")
+      , (1, "- /start <code> - to start filling form <code>")
+      , (7, "- /help - show this text")
+      , (2, "- /cancel - cancel your answers and start filling form again")
+      , (6, "- /stop - stop this bot (then you can fill another form or create your own)")
+      , (6, "All other text is interpreted as answer to the current question")
+      ]
+    -- TODO: add form author and title
+    formDesc :: Map Text FieldVal -> FormConfig -> [Text]
+    formDesc ans f = "You are filling a form with following fields: " :
+                     map (mkFieldDesc ans) (cfgFields f)
+    mkFieldDesc :: Map Text FieldVal -> FieldDef -> Text
+    mkFieldDesc ans FieldDef{ fdName=name, fdDesc=desc, fdType=ty } = let
+      val = case M.lookup name ans of
+        Nothing -> ""
+        Just v -> "- your answer: " <> mkValDesc v
+      in T.concat [ " + ", name, " - ", desc, " - ", mkTypeDesc ty, val ]
+    mkTypeDesc :: FieldType -> Text
     mkTypeDesc FieldInt = "integer"
-    mkTypeDesc FieldNum = "floating point number"
-    mkTypeDesc FieldText = "text"
+    mkTypeDesc FieldNum = "number"
+    mkTypeDesc FieldText = "free form text"
+    mkTypeDesc (FieldEnum _) = "fixed answer options"
+    mkTypeDesc (FieldLocation prec) = "location"
+    mkTypeDesc FieldTime = "time"
+    mkTypeDesc FieldSource = "telegram user id"
+    mkValDesc :: FieldVal -> Text
+    mkValDesc v = T.pack $ show v
 
 collectBot :: Env TFB -> BotApp State Action
 collectBot env = BotApp
