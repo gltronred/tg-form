@@ -21,6 +21,7 @@ library
                      , TFB.Bot
                      , TFB.Db
                      , TFB.Env
+                     , TFB.Parser
                      , TFB.Sheets
   -- other-modules:
   -- other-extensions:

@@ -12,10 +12,10 @@ module TFB.Bot where
 import TFB.Types
 import TFB.Env
 import TFB.Db
+import TFB.Parser (updateToAction)
 import TFB.Sheets
 
 import Colog (simpleMessageAction)
-import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
@@ -30,39 +30,9 @@ import Data.Text.Read
 import Data.Time.Clock.POSIX
 import Telegram.Bot.API
 import Telegram.Bot.Simple
-import Telegram.Bot.Simple.UpdateParser
 
 initialModel :: State
 initialModel = NotStarted
-
-location :: UpdateParser Location
-location = mkParser $ updateMessage >=> messageLocation
-
-user :: UpdateParser UserId
-user = mkParser $ fmap (fmap userId) $ updateMessage >=> messageFrom
-
-cmd :: Text -> UpdateParser Text
-cmd name = do
-  t <- text
-  case T.words t of
-    (w : ws) | w == "/" <> name -> pure (T.unwords ws)
-    _ -> empty
-
-plaintext :: UpdateParser Text
-plaintext = do
-  t <- text
-  if "/" `T.isPrefixOf` t
-    then empty
-    else pure t
-
-updateToAction :: State -> Update -> Maybe Action
-updateToAction NotStarted = parseUpdate $
-      (\c u -> Start (if T.null c then Nothing else Just c) u) <$> cmd "start" <*> user
-  <|> Help <$ cmd "help"
-  <|> (\c u -> Start (Just c) u) <$> callbackQueryDataRead <*> user
-updateToAction _st = parseUpdate $
-      Help <$ cmd "help"
-  <|> Ans <$> plaintext
 
 (!?) :: [a] -> Int -> Maybe a
 (!?) [] _ = Nothing
@@ -72,22 +42,19 @@ updateToAction _st = parseUpdate $
 runParser :: Reader a -> Text -> Either String a
 runParser p t = fst <$> p t
 
-parseFieldVal :: FieldType -> Text -> Either String FieldVal
-parseFieldVal field txt = case field of
+parseFieldVal :: FieldType -> Answer -> Either String FieldVal
+parseFieldVal field ans@Answer{ ansText=txt } = case field of
   FieldInt -> ValInt <$> runParser decimal txt
   FieldNum -> ValNum <$> runParser double txt
   FieldText -> Right $ ValText txt
   FieldEnum lopts -> case find (==txt) $ concat lopts of
     Nothing -> Left "Please, choose one of provided options"
     Just v  -> Right $ ValEnum v
-  FieldLocation _prec -> Left "TODO: implement parsing location"
+  FieldLocation prec -> case ansLocation ans of
+    Nothing -> Left "Please send your location"
+    Just loc -> Right $ ValLocation (realToFrac $ locationLatitude loc, realToFrac $ locationLongitude loc)
   FieldTime -> Left "Something went wrong: should not parse current time"
   FieldSource -> Left "Something went wrong: should not parse your user id"
-
-addAnswer :: FieldDef -> Map Text FieldVal -> Text -> Either String (Map Text FieldVal)
-addAnswer field olds txt = case parseFieldVal (fdType field) txt of
-  Left e -> Left e
-  Right v -> Right $ M.insert (fdName field) v olds
 
 mkQuestion :: FieldDef -> UserId -> IO (Either FieldVal ReplyMessage)
 mkQuestion field uid = case fdType field of

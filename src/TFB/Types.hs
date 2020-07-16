@@ -11,7 +11,7 @@ import Data.Aeson
 import Data.Map.Strict (Map,empty)
 import Data.Text (Text)
 import GHC.Generics
-import Telegram.Bot.API.Types (UserId(..))
+import Telegram.Bot.API.Types (UserId(..),Location(..))
 
 data LocPrecision
   = PrecCoord
@@ -88,6 +88,8 @@ data Config = Config
   , cfgPoolSize :: Maybe Int
   , cfgGeoFile :: Maybe FilePath
   , cfgToken :: Text
+  , cfgServiceMail :: Text
+  , cfgManual :: Text
   } deriving (Eq,Show,Generic)
 
 instance FromJSON Config where
@@ -116,11 +118,19 @@ getAnswers :: State -> Map Text FieldVal
 getAnswers Answered{ stAnswers=m } = m
 getAnswers _ = empty
 
+deriving instance Read Location
+
+data Answer = Answer
+  { ansText :: Text
+  , ansLocation :: Maybe Location
+  , ansUserId :: UserId
+  } deriving (Read,Show)
+
 data Action
   = NoOp
   | Start (Maybe Text) UserId -- /start [<code>] - starts form <code> or preparing (no code)
   | Help                      -- /help
-  | Ans Text                  -- <text> - give answer <text> to current question
+  | Ans Answer                -- <text> - give answer <text> to current question
   | Cancel                    -- /cancel - remove current answers and restart form
   | Stop                      -- /stop - remove current answers and wait for start (to change form or create new form)
   | Parsed FieldDef FieldVal
