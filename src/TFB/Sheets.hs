@@ -55,13 +55,19 @@ parseConfig docId sheet = do
       <$> fromJSON nameV
       <*> fromJSON descV
       <*> case fromJSON fieldV :: Result Text of
+            Success "enum" -> FieldEnum . parseEnumOptions <$> fromJSON paramV
+            Success "location" -> FieldLocation <$> fromJSON paramV
+            Success ty -> Error $ "Wrong type: " <> T.unpack ty
+            Error e -> Error e
+    [nameV, descV, fieldV] -> res2log $ FieldDef
+      <$> fromJSON nameV
+      <*> fromJSON descV
+      <*> case fromJSON fieldV :: Result Text of
             Success "int" -> pure FieldInt
             Success "num" -> pure FieldNum
             Success "text"-> pure FieldText
-            Success "enum" -> FieldEnum . parseEnumOptions <$> fromJSON paramV
-            Success "location" -> FieldLocation <$> fromJSON paramV
             Success "time" -> pure FieldTime
-            Success "source" -> pure FieldSource
+            Success "user" -> pure FieldSource
             Success "welcome" -> pure FieldWelcome
             Success "thanks" -> pure FieldThanks
             Success ty -> Error $ "Wrong type: " <> T.unpack ty
