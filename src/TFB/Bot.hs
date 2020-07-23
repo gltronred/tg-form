@@ -51,16 +51,21 @@ parseFieldVal field ans@Answer{ ansText=txt } = case field of
   FieldEnum lopts -> case find (==txt) $ concat lopts of
     Nothing -> Left "Please, choose one of provided options"
     Just v  -> Right $ ValEnum v
+  -- TODO: use precision to get city, region etc.
   FieldLocation prec -> case ansLocation ans of
     Nothing -> Left "Please send your location"
     Just loc -> Right $ ValLocation (realToFrac $ locationLatitude loc, realToFrac $ locationLongitude loc)
   FieldTime -> Left "Something went wrong: should not parse current time"
   FieldSource -> Left "Something went wrong: should not parse your user id"
+  FieldWelcome -> Left "Something went wrong: should not parse welcome text"
+  FieldThanks -> Left "Something went wrong: should not parse thanks text"
 
 mkQuestion :: FieldDef -> UserId -> IO (Either FieldVal ReplyMessage)
 mkQuestion field uid = case fdType field of
   FieldTime -> Left . ValTime . round <$> getPOSIXTime
   FieldSource -> pure $ Left $ ValUser uid
+  FieldWelcome -> pure $ Left ValVoid
+  FieldThanks -> pure $ Left ValVoid
   FieldLocation prec -> pure $ Right msg { replyMessageReplyMarkup = mkKbd $ locKbd prec }
   FieldEnum opts -> pure $ Right msg { replyMessageReplyMarkup = mkKbd $ optKbd opts }
   FieldInt -> pure $ Right msg
@@ -83,6 +88,18 @@ mkQuestion field uid = case fdType field of
       PrecMunicip -> "municipality"
       PrecRegion -> "region"
 
+fieldByType :: FieldType -> Text -> FormConfig -> Text
+fieldByType ty def FormConfig{ cfgFields=fs } = case find ((==ty) . fdType) fs of
+  Nothing -> def
+  Just FieldDef{ fdDesc=t } -> t
+
+welcomeField :: FormConfig -> Text
+welcomeField f = fieldByType FieldWelcome defWelcome f
+  where defWelcome = "Please fill the form by " <> T.pack (show $ cfgAuthor f)
+
+thanksField :: FormConfig -> Text
+thanksField = fieldByType FieldThanks "Thank you for participating!"
+
 handleAction :: Env TFB -> Action -> State -> Eff Action State
 handleAction env@Env{ } act st@NotStarted = case act of
   NoOp -> pure st
@@ -99,7 +116,7 @@ handleAction env@Env{ } act st@NotStarted = case act of
         reply $ toReplyMessage "Form not found!"
         pure NoOp
       Just form -> do
-        reply (toReplyMessage $ cfgWelcome form)
+        reply $ toReplyMessage $ welcomeField form
         pure $ GoForm form u
   GoForm form u -> Answered
     { stSrc = u
@@ -133,7 +150,7 @@ handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current 
     mfield = cfgFields form !? current
     in case mfield of
          Nothing -> NotStarted <# do
-           reply $ toReplyMessage $ cfgThanks form
+           reply $ toReplyMessage $ thanksField form
            pure NoOp
          Just field -> st <# do
            q <- liftIO $ mkQuestion field $ stSrc st
@@ -147,7 +164,7 @@ handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current 
     st' = st { stCurrent = idx, stAnswers = ans }
     in st' <# do
       when (idx >= length (cfgFields form)) $ do
-        liftIO $ atomically $ writeTBQueue mq $ MsgInfo ans
+        liftIO $ atomically $ writeTBQueue mq $ MsgInfo form ans
       pure AskCurrent
   Ans t -> let
     mfield = cfgFields form !? current

@@ -33,6 +33,8 @@ data FieldType
   | FieldLocation LocPrecision
   | FieldTime
   | FieldSource
+  | FieldWelcome
+  | FieldThanks
   deriving (Eq,Show,Read,Generic)
 
 instance FromJSON FieldType where
@@ -50,6 +52,7 @@ data FieldVal
   | ValLocation (Double, Double)
   | ValTime Int
   | ValUser UserId
+  | ValVoid
   deriving (Eq,Show,Read,Generic)
 
 instance FromJSON FieldVal where
@@ -73,8 +76,6 @@ data FormConfig = FormConfig
   , cfgConfigSheet :: Text
   , cfgResultSheet :: Text
   , cfgAuthor :: UserId
-  , cfgWelcome :: Text
-  , cfgThanks :: Text
   , cfgFields :: [FieldDef]
   } deriving (Eq,Show,Read,Generic)
 
@@ -139,7 +140,7 @@ data Action
   deriving (Read,Show)
 
 data MsgItem
-  = MsgInfo (Map Text FieldVal)
+  = MsgInfo FormConfig (Map Text FieldVal)
   deriving (Eq,Show,Read,Generic)
 
 jsonOpts :: Int -> Int -> Options

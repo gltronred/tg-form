@@ -33,8 +33,6 @@ data PreFormConfig = PFC
   { preCode :: Text
   , preConfigSheet :: Text
   , preResultSheet :: Text
-  , preWelcome :: Text
-  , preThanks :: Text
   , preAuthor :: UserId
   , preUpdate :: UTCTime
   } deriving (Eq,Show,Generic)
@@ -72,15 +70,11 @@ toForm :: PreFormConfig -> [FieldDef] -> FormConfig
 toForm PFC{ preCode=c
           , preConfigSheet=cs
           , preResultSheet=rs
-          , preWelcome=w
-          , preThanks=t
           , preAuthor=a
           } fds
   = FormConfig{ cfgCode=c
               , cfgConfigSheet=cs
               , cfgResultSheet=rs
-              , cfgWelcome=w
-              , cfgThanks=t
               , cfgAuthor=a
               , cfgFields=fds
               }
@@ -99,8 +93,6 @@ fromForm t f = PFC
   { preCode = cfgCode f
   , preConfigSheet = cfgConfigSheet f
   , preResultSheet = cfgResultSheet f
-  , preWelcome = cfgWelcome f
-  , preThanks = cfgThanks f
   , preAuthor = cfgAuthor f
   , preUpdate = t
   }
