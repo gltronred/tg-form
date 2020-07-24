@@ -173,6 +173,8 @@ handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
             link = "https://t.me/tg_forms_bot?start=" <> code
         liftIO $ T.putStrLn $ "code=" <> code <> "; uid=" <> uidS
         liftIO $ saveForm form conn
+        reply $ toReplyMessage $ T.intercalate "\n" $
+          "Parsed form with fields: " : formDesc M.empty form
         reply $ toReplyMessage ("Form saved, you can send a link: " <> link)
         pure NoOp
   AskCurrent -> case mdoc of
@@ -254,21 +256,21 @@ botUsage :: State -> Maybe FormConfig -> Text
 botUsage st mform = T.intercalate "\n" $
   [ "This bot collects answers and writes it into Google Sheets"
   , ""
-  , "You can create your own form: see <...TODO...> for full manual"
+  , "You can create your own form: see [full manual](https://sr.ht/~rd/tg-form)"
   , ""
   ] ++ stateDesc st ++ maybe [""] (formDesc $ getAnswers st) mform
   where
     stateDesc :: State -> [Text]
     stateDesc NotStarted = "You have not started working with bot" : cmds 0
-    stateDesc PreparingSheet{} = "You are preparing your form" : cmds 3
-    stateDesc Answered{} = "You are filling form" : cmds 2
+    stateDesc PreparingSheet{} = "You are preparing your form" : cmds 2
+    stateDesc Answered{} = "You are filling form" : cmds 1
     cmds :: Int -> [Text]
     cmds k = map snd $ filter ((`testBit` k) . fst)
       [ ((7 :: Int), "Available commands: ")
       , (1, "- /start - to start creating form")
       , (1, "- /start <code> - to start filling form <code>")
       , (7, "- /help - show this text")
-      , (2, "- /cancel - cancel your answers and start filling form again")
+      , (6, "- /cancel - cancel your answers and start filling form again")
       , (7, "- /newform - cancel answers and start creating new form")
       , (6, "All other text is interpreted as answer to the current question")
       ]
