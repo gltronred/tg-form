@@ -176,8 +176,8 @@ handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
         richReply $ T.intercalate "\n" $
           "Parsed form with fields: " : formDesc M.empty form
         richReply $ T.concat
-          [ "Form saved, you can send a link: ", link
-          , " or use a command [/start ", code, "](/start ", code, ")"
+          [ "Form saved, you can send a link: [", link
+          , "](", link, ") or use a command `/start ", code, "`"
           ]
         pure NoOp
   AskCurrent -> case mdoc of
@@ -247,12 +247,10 @@ richReply :: Text -> BotM ()
 richReply t = reply $ (toReplyMessage t)
   { replyMessageParseMode = Just Markdown }
 
--- TODO: use this text somewhere
 addNewFormText :: Text
 addNewFormText = T.intercalate "\n"
   [ "To add a new form please do the following:"
-  , "(see [full manual](https://sr.ht/~rd/tg-form))"
-  , "1. Create a spreadsheet with configuration and result sheets"
+  , "1. Create a spreadsheet with `config` and `result` sheets"
   , "2. Share your spreadsheet with [demo-bot@...TODO...](mailto:demo-bot@...TODO...)"
   , "3. Send me the address of this spreadsheet"
   , ""
@@ -263,18 +261,18 @@ addNewFormText = T.intercalate "\n"
 -- TODO: think about better help message
 botUsage :: State -> Maybe FormConfig -> Text
 botUsage st mform = T.intercalate "\n" $
-  [ "This bot collects answers and writes it into Google Sheets"
+  [ "*This bot collects answers and writes it into Google Sheets*"
   , ""
   , "You can create your own form: see [full manual](https://sr.ht/~rd/tg-form)"
   , ""
   ]
   ++ stateDesc st
   ++ pure "\n"
-  ++ maybe [""] (("You are filling a form with following fields: " :) . (formDesc $ getAnswers st)) mform
+  ++ maybe [""] (("*Current form fields:*\n" :) . (formDesc $ getAnswers st)) mform
   where
     stateDesc :: State -> [Text]
     stateDesc NotStarted = "You have not started working with bot\n" : cmds 0
-    stateDesc PreparingSheet{} = "You are preparing your form\n" : cmds 2
+    stateDesc PreparingSheet{} = addNewFormText : cmds 2
     stateDesc Answered{} = "You are filling form\n" : cmds 1
     cmds :: Int -> [Text]
     cmds k = map snd $ filter ((`testBit` k) . fst)
