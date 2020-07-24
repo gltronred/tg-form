@@ -119,12 +119,12 @@ loadForm code = runDbConn $ do
       preFields <- select $ (PreFormField ==. preId) `orderBy` [Asc PreOrderField]
       pure $ Just $ toForm form $ map toField preFields
 
--- TODO: remove old fields
 saveForm :: FormConfig -> Connection -> IO ()
 saveForm form = runDbConn $ do
   now <- liftIO getCurrentTime
   ek <- insertBy FormCode $ fromForm now form
   let k = either id id ek
+  delete $ PreFormField ==. k
   forM_ (zip [1..] $ cfgFields form) $ insert . fromField k
 
 withDb :: String -> Int -> (Connection -> IO ()) -> IO ()
