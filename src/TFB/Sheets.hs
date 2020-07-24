@@ -32,7 +32,6 @@ import System.IO (stdout)
 sheetWorker :: Env TFB -> IO ()
 sheetWorker Env{ envConfig=cfg, envQueue=mq } = do
   forever $ do
-    let sheetId = "TODO"
     msg <- atomically $ readTBQueue mq
     print msg
     case msg of
