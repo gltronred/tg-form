@@ -173,13 +173,16 @@ handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
             link = "https://t.me/tg_forms_bot?start=" <> code
         liftIO $ T.putStrLn $ "code=" <> code <> "; uid=" <> uidS
         liftIO $ saveForm form conn
-        reply $ toReplyMessage $ T.intercalate "\n" $
+        richReply $ T.intercalate "\n" $
           "Parsed form with fields: " : formDesc M.empty form
-        reply $ toReplyMessage ("Form saved, you can send a link: " <> link)
+        richReply $ T.concat
+          [ "Form saved, you can send a link: ", link
+          , " or use a command [/start ", code, "](/start ", code, ")"
+          ]
         pure NoOp
   AskCurrent -> case mdoc of
     Nothing -> st <# do
-      reply (toReplyMessage "Please, share your spreadsheet with <demo-bot@...TODO...> and send its address here")
+      richReply "Please, share your spreadsheet with `demo-bot@...TODO...` and send its address here"
       pure NoOp
     Just d -> st <# pure (NewForm (stSrc st) d)
   Ans Answer{ ansText=d } -> st <# pure (NewForm (stSrc st) d)
@@ -232,7 +235,7 @@ handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current 
 
 usage :: State -> Maybe FormConfig -> Eff Action State
 usage st mform = st <# do
-  reply $ toReplyMessage $ botUsage st mform
+  richReply $ botUsage st mform
   pure NoOp
 
 become :: State -> Eff Action State
@@ -240,16 +243,21 @@ become st = st <# do
   reply $ toReplyMessage "Cancelling all your answers so far"
   pure NoOp
 
+richReply :: Text -> BotM ()
+richReply t = reply $ (toReplyMessage t)
+  { replyMessageParseMode = Just Markdown }
+
+-- TODO: use this text somewhere
 addNewFormText :: Text
 addNewFormText = T.intercalate "\n"
   [ "To add a new form please do the following:"
-  , "(see <...TODO...> for full manual)"
+  , "(see [full manual](https://sr.ht/~rd/tg-form))"
   , "1. Create a spreadsheet with configuration and result sheets"
-  , "2. Share your spreadsheet with demo-bot@...TODO..."
+  , "2. Share your spreadsheet with [demo-bot@...TODO...](mailto:demo-bot@...TODO...)"
   , "3. Send me the address of this spreadsheet"
   , ""
   , "Remember that Google limits the number of API calls"
-  , "Consult <https://sr.ht/~rd/tg-form...TODO...> for details and upgrading to paid account"
+  , "Consult [the manual](https://sr.ht/~rd/tg-form)...TODO... for details and upgrading to paid account"
   ]
 
 -- TODO: think about better help message
@@ -259,12 +267,15 @@ botUsage st mform = T.intercalate "\n" $
   , ""
   , "You can create your own form: see [full manual](https://sr.ht/~rd/tg-form)"
   , ""
-  ] ++ stateDesc st ++ maybe [""] (formDesc $ getAnswers st) mform
+  ]
+  ++ stateDesc st
+  ++ pure "\n"
+  ++ maybe [""] (("You are filling a form with following fields: " :) . (formDesc $ getAnswers st)) mform
   where
     stateDesc :: State -> [Text]
-    stateDesc NotStarted = "You have not started working with bot" : cmds 0
-    stateDesc PreparingSheet{} = "You are preparing your form" : cmds 2
-    stateDesc Answered{} = "You are filling form" : cmds 1
+    stateDesc NotStarted = "You have not started working with bot\n" : cmds 0
+    stateDesc PreparingSheet{} = "You are preparing your form\n" : cmds 2
+    stateDesc Answered{} = "You are filling form\n" : cmds 1
     cmds :: Int -> [Text]
     cmds k = map snd $ filter ((`testBit` k) . fst)
       [ ((7 :: Int), "Available commands: ")
@@ -278,15 +289,15 @@ botUsage st mform = T.intercalate "\n" $
 
 -- TODO: add form author and title
 formDesc :: Map Text FieldVal -> FormConfig -> [Text]
-formDesc ans f = "You are filling a form with following fields: " :
-                 map (mkFieldDesc ans) (cfgFields f)
+formDesc ans f = map (mkFieldDesc ans) (cfgFields f)
   where
     mkFieldDesc :: Map Text FieldVal -> FieldDef -> Text
     mkFieldDesc ans FieldDef{ fdName=name, fdDesc=desc, fdType=ty } = let
       val = case M.lookup name ans of
         Nothing -> ""
-        Just v -> "- your answer: " <> mkValDesc v
-      in T.concat [ " + ", name, " - ", desc, " - ", mkTypeDesc ty, val ]
+        Just ValVoid -> ""
+        Just v -> " - _your answer: " <> mkValDesc v <> "_"
+      in T.concat [ "- *", name, "* - ", desc, " - ", mkTypeDesc ty, val ]
     mkTypeDesc :: FieldType -> Text
     mkTypeDesc FieldInt = "integer"
     mkTypeDesc FieldNum = "number"
@@ -298,7 +309,18 @@ formDesc ans f = "You are filling a form with following fields: " :
     mkTypeDesc FieldWelcome = "welcome text"
     mkTypeDesc FieldThanks = "final message"
     mkValDesc :: FieldVal -> Text
-    mkValDesc v = T.pack $ show v
+    mkValDesc ValVoid = ""
+    mkValDesc (ValInt n) = T.pack $ show n
+    mkValDesc (ValNum n) = T.pack $ show n
+    mkValDesc (ValText t) = t
+    mkValDesc (ValEnum t) = t
+    -- TODO: better depict location
+    mkValDesc (ValLocation (lat,lon)) = T.pack $ show lat <> "," <> show lon
+    -- TODO: better depict time
+    mkValDesc (ValTime dt) = T.pack $ show dt
+    -- TODO: better depict user id
+    mkValDesc (ValUser (UserId uid)) = T.pack $ show uid
+
 
 collectBot :: Env TFB -> BotApp State Action
 collectBot env = BotApp
