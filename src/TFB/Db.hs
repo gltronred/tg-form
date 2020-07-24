@@ -31,6 +31,7 @@ import Telegram.Bot.API.Types (UserId(..))
 
 data PreFormConfig = PFC
   { preCode :: Text
+  , preDocumentId :: Text
   , preConfigSheet :: Text
   , preResultSheet :: Text
   , preAuthor :: UserId
@@ -68,11 +69,13 @@ mkPersist defaultCodegenConfig [groundhog|
 
 toForm :: PreFormConfig -> [FieldDef] -> FormConfig
 toForm PFC{ preCode=c
+          , preDocumentId=doc
           , preConfigSheet=cs
           , preResultSheet=rs
           , preAuthor=a
           } fds
   = FormConfig{ cfgCode=c
+              , cfgDocumentId=doc
               , cfgConfigSheet=cs
               , cfgResultSheet=rs
               , cfgAuthor=a
@@ -91,6 +94,7 @@ toField PFD{ preName=n
 fromForm :: UTCTime -> FormConfig -> PreFormConfig
 fromForm t f = PFC
   { preCode = cfgCode f
+  , preDocumentId = cfgDocumentId f
   , preConfigSheet = cfgConfigSheet f
   , preResultSheet = cfgResultSheet f
   , preAuthor = cfgAuthor f

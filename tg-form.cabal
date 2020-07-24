@@ -37,6 +37,7 @@ library
                      , groundhog-converters >=0.1
                      , groundhog-sqlite >=0.11
                      , groundhog-th >=0.11
+                     , http-types >=0.12
                      , lens >=4.19
                      , mtl >=2.2
                      , resource-pool >=0.2

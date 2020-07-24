@@ -44,7 +44,11 @@ updateToAction :: State -> Update -> Maybe Action
 updateToAction NotStarted = parseUpdate $
       (\c u -> Start (if T.null c then Nothing else Just c) u) <$> cmd "start" <*> user
   <|> Help <$ cmd "help"
+  <|> NewForm <$> user <*> cmd "newform"
   <|> (\c u -> Start (Just c) u) <$> callbackQueryDataRead <*> user
 updateToAction _st = parseUpdate $
-      Help <$ cmd "help"
+      (\c u -> Start (if T.null c then Nothing else Just c) u) <$> cmd "start" <*> user
+  <|> Help <$ cmd "help"
+  <|> Cancel <$ cmd "cancel"
+  <|> NewForm <$> user <*> cmd "newform"
   <|> Ans <$> answer

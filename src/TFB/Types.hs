@@ -73,6 +73,7 @@ instance ToJSON FieldDef where
 
 data FormConfig = FormConfig
   { cfgCode :: Text
+  , cfgDocumentId :: Text
   , cfgConfigSheet :: Text
   , cfgResultSheet :: Text
   , cfgAuthor :: UserId
@@ -102,6 +103,7 @@ data State
   = NotStarted
   | PreparingSheet
     { stSrc :: UserId
+    , stDocId :: Maybe Text
     }
   | Answered
     { stSrc :: UserId
@@ -133,7 +135,7 @@ data Action
   | Help                      -- /help
   | Ans Answer                -- <text> - give answer <text> to current question
   | Cancel                    -- /cancel - remove current answers and restart form
-  | Stop                      -- /stop - remove current answers and wait for start (to change form or create new form)
+  | NewForm UserId Text       -- /newform - remove current answers and start creating form
   | Parsed FieldDef FieldVal
   | GoForm FormConfig UserId
   | AskCurrent

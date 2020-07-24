@@ -78,10 +78,12 @@ parseEnumOptions :: Text -> [[Text]]
 parseEnumOptions = map (T.splitOn ";") . T.splitOn ";;"
 
 appendRow :: FormConfig -> Map Text FieldVal -> IO Text
-appendRow FormConfig{ cfgResultSheet=sheetId, cfgFields=fs } ans = do
+appendRow FormConfig{ cfgDocumentId=docId
+                    , cfgResultSheet=sheet
+                    , cfgFields=fs } ans = do
   let fields = map fdName fs
       orderedAns = map (ans M.!) fields
-  appendGS sheetId "raw" orderedAns
+  appendGS docId sheet orderedAns
 
 appendGS :: Text -> Text -> [FieldVal] -> IO Text
 appendGS sheetId name vals = do

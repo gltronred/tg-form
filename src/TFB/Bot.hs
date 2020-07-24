@@ -21,14 +21,20 @@ import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Bits
-import Data.List (find)
+import Data.Char
+import Data.Int
+import Data.List (find, maximumBy)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe
+import Data.Ord
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import Data.Text.Encoding
 import Data.Text.Read
 import Data.Time.Clock.POSIX
+import Network.HTTP.Types
 import Telegram.Bot.API
 import Telegram.Bot.Simple
 
@@ -100,13 +106,19 @@ welcomeField f = fieldByType FieldWelcome defWelcome f
 thanksField :: FormConfig -> Text
 thanksField = fieldByType FieldThanks "Thank you for participating!"
 
+toCode :: Int32 -> Text
+toCode = let
+  go 0 = Nothing
+  go x = Just (toChar $ x`mod`16, x`div`16)
+  toChar = \case
+    v | 0 <= v && v <= 9 -> chr $ ord '0' + v
+      | otherwise -> chr $ ord 'a' - 10 + v
+  in T.justifyRight 8 '0' . T.unfoldr go . fromIntegral
+
 handleAction :: Env TFB -> Action -> State -> Eff Action State
 handleAction env@Env{ } act st@NotStarted = case act of
   NoOp -> pure st
-  Start Nothing u -> st <# do
-    -- prepare sheet here!
-    reply $ toReplyMessage addNewFormText
-    pure NoOp
+  Start Nothing u -> PreparingSheet u Nothing <# pure AskCurrent
   Start (Just code) u -> st <# do
     -- get form here!
     let conn = envConn env
@@ -127,23 +139,53 @@ handleAction env@Env{ } act st@NotStarted = case act of
     pure AskCurrent
   -- Cancel and Stop
   Cancel -> become NotStarted
-  Stop -> become NotStarted
+  NewForm u d -> case d of
+    "" -> PreparingSheet u Nothing  <# pure AskCurrent
+    _  -> PreparingSheet u (Just d) <# pure AskCurrent
   -- Help and wrong commands
   Help -> usage st Nothing
   Ans _ -> usage st Nothing
   Parsed _ _ -> usage st Nothing
   AskCurrent -> usage st Nothing
-handleAction env@Env{ } act st@PreparingSheet{} = case act of
+handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
   NoOp -> pure st
   -- Cancel and stop
   Cancel -> become NotStarted
-  Stop -> become NotStarted
+  NewForm u@(UserId uid) d -> let
+    in st <# do
+    case d of
+      "" -> pure AskCurrent
+      _  -> do
+        let (segments, _query) = decodePath $ extractPath $ encodeUtf8 d
+            ident = maximumBy (comparing T.length) segments
+        fields <- liftIO $ parseConfig ident "config"
+        let code = "FFRM" <> toCode uid
+            uidS = T.pack $ show uid
+            form = FormConfig
+              { cfgCode = code
+              , cfgDocumentId = ident
+              , cfgConfigSheet = "config"
+              , cfgResultSheet = "result"
+              , cfgAuthor = u
+              , cfgFields = fields
+              }
+            conn = envConn env
+            link = "https://t.me/tg_forms_bot?start=" <> code
+        liftIO $ T.putStrLn $ "code=" <> code <> "; uid=" <> uidS
+        liftIO $ saveForm form conn
+        reply $ toReplyMessage ("Form saved, you can send a link: " <> link)
+        pure NoOp
+  AskCurrent -> case mdoc of
+    Nothing -> st <# do
+      reply (toReplyMessage "Please, share your spreadsheet with <demo-bot@...TODO...> and send its address here")
+      pure NoOp
+    Just d -> st <# pure (NewForm (stSrc st) d)
+  Ans Answer{ ansText=d } -> st <# pure (NewForm (stSrc st) d)
   -- Help and wrong commands
   Help -> usage st Nothing
   Start _ _ -> usage st Nothing
   GoForm _ _ -> usage st Nothing
   Parsed _ _ -> usage st Nothing
-  AskCurrent -> usage st Nothing
 handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current } = case act of
   NoOp -> pure st
   AskCurrent -> let
@@ -178,7 +220,9 @@ handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current 
              pure $ Parsed field v
   -- Cancel and stop
   Cancel -> become $ st { stCurrent = 0, stAnswers = M.empty }
-  Stop -> become NotStarted
+  NewForm u d -> case d of
+    "" -> PreparingSheet u Nothing  <# pure AskCurrent
+    _  -> PreparingSheet u (Just d) <# pure AskCurrent
   -- Help and wrong commands
   Help -> usage st $ Just form
   Start _ _ -> usage st $ Just form
@@ -225,13 +269,15 @@ botUsage st mform = T.intercalate "\n" $
       , (1, "- /start <code> - to start filling form <code>")
       , (7, "- /help - show this text")
       , (2, "- /cancel - cancel your answers and start filling form again")
-      , (6, "- /stop - stop this bot (then you can fill another form or create your own)")
+      , (7, "- /newform - cancel answers and start creating new form")
       , (6, "All other text is interpreted as answer to the current question")
       ]
-    -- TODO: add form author and title
-    formDesc :: Map Text FieldVal -> FormConfig -> [Text]
-    formDesc ans f = "You are filling a form with following fields: " :
-                     map (mkFieldDesc ans) (cfgFields f)
+
+-- TODO: add form author and title
+formDesc :: Map Text FieldVal -> FormConfig -> [Text]
+formDesc ans f = "You are filling a form with following fields: " :
+                 map (mkFieldDesc ans) (cfgFields f)
+  where
     mkFieldDesc :: Map Text FieldVal -> FieldDef -> Text
     mkFieldDesc ans FieldDef{ fdName=name, fdDesc=desc, fdType=ty } = let
       val = case M.lookup name ans of
@@ -246,6 +292,8 @@ botUsage st mform = T.intercalate "\n" $
     mkTypeDesc (FieldLocation prec) = "location"
     mkTypeDesc FieldTime = "time"
     mkTypeDesc FieldSource = "telegram user id"
+    mkTypeDesc FieldWelcome = "welcome text"
+    mkTypeDesc FieldThanks = "final message"
     mkValDesc :: FieldVal -> Text
     mkValDesc v = T.pack $ show v
 
