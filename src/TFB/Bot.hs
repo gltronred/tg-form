@@ -252,6 +252,7 @@ addNewFormText = T.intercalate "\n"
   , "Consult <https://sr.ht/~rd/tg-form...TODO...> for details and upgrading to paid account"
   ]
 
+-- TODO: think about better help message
 botUsage :: State -> Maybe FormConfig -> Text
 botUsage st mform = T.intercalate "\n" $
   [ "This bot collects answers and writes it into Google Sheets"

@@ -119,6 +119,7 @@ loadForm code = runDbConn $ do
       preFields <- select $ (PreFormField ==. preId) `orderBy` [Asc PreOrderField]
       pure $ Just $ toForm form $ map toField preFields
 
+-- TODO: remove old fields
 saveForm :: FormConfig -> Connection -> IO ()
 saveForm form = runDbConn $ do
   now <- liftIO getCurrentTime
