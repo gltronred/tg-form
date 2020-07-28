@@ -251,11 +251,11 @@ addNewFormText :: Text
 addNewFormText = T.intercalate "\n"
   [ "To add a new form please do the following:"
   , "1. Create a spreadsheet with `config` and `result` sheets"
-  , "2. Share your spreadsheet with [demo-bot@...TODO...](mailto:demo-bot@...TODO...)"
+  , "2. Share your spreadsheet with [demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com](mailto:demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com)"
   , "3. Send me the address of this spreadsheet"
   , ""
   , "Remember that Google limits the number of API calls"
-  , "Consult [the manual](https://sr.ht/~rd/tg-form)...TODO... for details and upgrading to paid account"
+  , "Consult [the manual](https://sr.ht/~rd/tg-form) for details and upgrading to paid account"
   ]
 
 -- TODO: think about better help message
