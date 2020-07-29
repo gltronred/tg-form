@@ -8,6 +8,7 @@ module TFB.Sheets where
 import TFB.Types ( FieldType(..)
                  , FieldDef(..)
                  , FieldVal(..)
+                 , NamedCoord(..)
                  , FormConfig(..)
                  , MsgItem(..))
 import TFB.Env (TFB,Env(Env,envConfig,envQueue))
@@ -112,7 +113,7 @@ toJV (ValInt n) = pure $ pure $ toJSON n
 toJV (ValNum d) = pure $ pure $ toJSON d
 toJV (ValText t) = pure $ pure $ toJSON t
 toJV (ValEnum t) = pure $ pure $ toJSON t
-toJV (ValLocation (lat,lon)) = pure [toJSON lat, toJSON lon]
+toJV (ValLocation NamedCoord{ ncLat=lat, ncLon=lon }) = pure [toJSON lat, toJSON lon]
 toJV (ValTime ts) = pure $ pure $ toJSON ts
 toJV (ValUser u) = pure $ pure $ toJSON u
 toJV ValVoid = pure []

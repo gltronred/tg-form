@@ -7,10 +7,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StrictData #-}
 
 module TFB.Env where
 
 import TFB.Types
+import TFB.Geo (GeoDb)
 
 import Colog
 import Control.Concurrent.STM
@@ -25,6 +27,7 @@ data Env m = Env
   , envConn :: Connection
   , envQueue :: TBQueue MsgItem
   , envConfig :: Config
+  , envGeoDb :: GeoDb
   }
 
 instance HasLog (Env m) Message m where

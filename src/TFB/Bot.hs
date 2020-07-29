@@ -12,6 +12,7 @@ module TFB.Bot where
 import TFB.Types
 import TFB.Env
 import TFB.Db
+import TFB.Geo (GeoDb, emptyGeoDb, loadGeoData, findNearest, geo2loc)
 import TFB.Parser (updateToAction)
 import TFB.Sheets
 
@@ -49,8 +50,8 @@ initialModel = NotStarted
 runParser :: Reader a -> Text -> Either String a
 runParser p t = fst <$> p t
 
-parseFieldVal :: FieldType -> Answer -> Either String FieldVal
-parseFieldVal field ans@Answer{ ansText=txt } = case field of
+parseFieldVal :: GeoDb -> FieldType -> Answer -> Either String FieldVal
+parseFieldVal geoDb field ans@Answer{ ansText=txt } = case field of
   FieldInt -> ValInt <$> runParser decimal txt
   FieldNum -> ValNum <$> runParser double txt
   FieldText -> Right $ ValText txt
@@ -60,7 +61,11 @@ parseFieldVal field ans@Answer{ ansText=txt } = case field of
   -- TODO: use precision to get city, region etc.
   FieldLocation prec -> case ansLocation ans of
     Nothing -> Left "Please send your location"
-    Just loc -> Right $ ValLocation (realToFrac $ locationLatitude loc, realToFrac $ locationLongitude loc)
+    Just loc -> Right $ let
+      lat = realToFrac $ locationLatitude loc
+      lon = realToFrac $ locationLongitude loc
+      geo = findNearest geoDb lat lon
+      in ValLocation $ geo2loc prec geo
   FieldTime -> Left "Something went wrong: should not parse current time"
   FieldSource -> Left "Something went wrong: should not parse your user id"
   FieldWelcome -> Left "Something went wrong: should not parse welcome text"
@@ -191,7 +196,7 @@ handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
   Start _ _ -> usage st Nothing
   GoForm _ _ -> usage st Nothing
   Parsed _ _ -> usage st Nothing
-handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current } = case act of
+handleAction Env{ envQueue=mq, envGeoDb=geoDb } act st@Answered{ stForm=form, stCurrent=current } = case act of
   NoOp -> pure st
   AskCurrent -> let
     mfield = cfgFields form !? current
@@ -217,7 +222,7 @@ handleAction Env{ envQueue=mq } act st@Answered{ stForm=form, stCurrent=current 
     mfield = cfgFields form !? current
     in case mfield of
          Nothing -> pure NotStarted
-         Just field -> case parseFieldVal (fdType field) t of
+         Just field -> case parseFieldVal geoDb (fdType field) t of
            Left err -> st <# do
              reply (toReplyMessage $ T.pack err)
              pure AskCurrent
@@ -313,7 +318,7 @@ formDesc ans f = map (mkFieldDesc ans) (cfgFields f)
     mkValDesc (ValText t) = t
     mkValDesc (ValEnum t) = t
     -- TODO: better depict location
-    mkValDesc (ValLocation (lat,lon)) = T.pack $ show lat <> "," <> show lon
+    mkValDesc (ValLocation loc) = ncName loc <> ": " <> T.pack (show $ ncLat loc) <> "," <> T.pack (show $ ncLon loc)
     -- TODO: better depict time
     mkValDesc (ValTime dt) = T.pack $ show dt
     -- TODO: better depict user id
@@ -332,12 +337,15 @@ run :: Config -> IO ()
 run cfg@Config{ cfgToken=token
               , cfgConnection=connStr
               , cfgPoolSize=msz
+              , cfgGeoFile=geoFile
               } = withDb connStr (fromMaybe 10 msz) $ \conn -> do
   mq <- newTBQueueIO 1000
+  geoDb <- maybe (pure emptyGeoDb) loadGeoData geoFile
   let environ = Env { envLogger = simpleMessageAction
                     , envConn = conn
                     , envQueue = mq
                     , envConfig = cfg
+                    , envGeoDb = geoDb
                     }
   _ <- forkIO $ sheetWorker environ
   env <- defaultTelegramClientEnv $ Token token

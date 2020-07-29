@@ -13,10 +13,22 @@ import Data.Text (Text)
 import GHC.Generics
 import Telegram.Bot.API.Types (UserId(..),Location(..))
 
+data NamedCoord = NamedCoord
+  { ncName :: Text
+  , ncLat :: Double
+  , ncLon :: Double
+  } deriving (Eq,Show,Read,Generic)
+
+instance FromJSON NamedCoord where
+  parseJSON = genericParseJSON $ jsonOpts 2 0
+instance ToJSON NamedCoord where
+  toEncoding = genericToEncoding $ jsonOpts 2 0
+
 data LocPrecision
   = PrecCoord
   | PrecCity
   | PrecMunicip
+  | PrecSubregion
   | PrecRegion
   deriving (Eq,Show,Read,Generic)
 
@@ -49,7 +61,7 @@ data FieldVal
   | ValNum Double
   | ValText Text
   | ValEnum Text
-  | ValLocation (Double, Double)
+  | ValLocation NamedCoord
   | ValTime Int
   | ValUser UserId
   | ValVoid
