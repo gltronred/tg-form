@@ -62,7 +62,7 @@ geo2loc p (c,g) = case p of
                                 ] of
                    [] -> geo2loc PrecRegion (c,g)
                    x:_-> x
-  PrecSubregion -> case geoName2 g of
-                     Nothing -> geo2loc PrecRegion (c,g)
-                     Just x  -> fromJust $ NamedCoord x <$> geoLat2 g <*> geoLon2 g
+  PrecDistrict -> case geoName2 g of
+                    Nothing -> geo2loc PrecRegion (c,g)
+                    Just x  -> fromJust $ NamedCoord x <$> geoLat2 g <*> geoLon2 g
   PrecRegion -> NamedCoord (geoName1 g) (geoLat1 g) (geoLon1 g)

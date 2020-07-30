@@ -58,7 +58,6 @@ parseFieldVal geoDb field ans@Answer{ ansText=txt } = case field of
   FieldEnum lopts -> case find (==txt) $ concat lopts of
     Nothing -> Left "Please, choose one of provided options"
     Just v  -> Right $ ValEnum v
-  -- TODO: use precision to get city, region etc.
   FieldLocation prec -> case ansLocation ans of
     Nothing -> Left "Please send your location"
     Just loc -> Right $ let
@@ -95,9 +94,10 @@ mkQuestion field uid = case fdType field of
     locKbd prec = [ [ KeyboardButton (locBtn prec) Nothing (Just True) ] ]
     locBtn = ("Send my " <> ) . \case
       PrecCoord -> "coordinates"
-      PrecCity -> "city"
-      PrecMunicip -> "municipality"
-      PrecRegion -> "region"
+      PrecCity -> "settlement"
+      PrecMunicip -> "municipal formation"
+      PrecDistrict -> "municipal district"
+      PrecRegion -> "federal subject"
 
 fieldByType :: FieldType -> Text -> FormConfig -> Text
 fieldByType ty def FormConfig{ cfgFields=fs } = case find ((==ty) . fdType) fs of
@@ -187,7 +187,7 @@ handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
         pure NoOp
   AskCurrent -> case mdoc of
     Nothing -> st <# do
-      richReply "Please, share your spreadsheet with `demo-bot@...TODO...` and send its address here"
+      richReply "Please, share your spreadsheet with `demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com` and send its address here"
       pure NoOp
     Just d -> st <# pure (NewForm (stSrc st) d)
   Ans Answer{ ansText=d } -> st <# pure (NewForm (stSrc st) d)

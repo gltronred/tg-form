@@ -28,7 +28,7 @@ data LocPrecision
   = PrecCoord
   | PrecCity
   | PrecMunicip
-  | PrecSubregion
+  | PrecDistrict
   | PrecRegion
   deriving (Eq,Show,Read,Generic)
 
