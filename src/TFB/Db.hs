@@ -21,7 +21,7 @@ import TFB.Env
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Int
-import Data.Text (Text)
+import Data.Text (Text, toUpper)
 import Data.Time
 import Database.Groundhog.Converters
 import Database.Groundhog.TH
@@ -112,10 +112,10 @@ fromField k (i,f) = PFD
 
 loadForm :: Text -> Connection -> IO (Maybe FormConfig)
 loadForm code = runDbConn $ do
-  mpre <- project (AutoKeyField, PFCConstructor) $ (PreCodeField ==. code) `limitTo` 1
+  mpre <- project (AutoKeyField, PFCConstructor) $ (PreCodeField ==. toUpper code) `limitTo` 1
   case mpre of
     [] -> pure Nothing
-    [(preId, form)] -> do
+    (preId, form):_ -> do
       preFields <- select $ (PreFormField ==. preId) `orderBy` [Asc PreOrderField]
       pure $ Just $ toForm form $ map toField preFields
 
