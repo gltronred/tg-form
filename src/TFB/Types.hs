@@ -102,8 +102,6 @@ data Config = Config
   , cfgPoolSize :: Maybe Int
   , cfgGeoFile :: Maybe FilePath
   , cfgToken :: Text
-  , cfgServiceMail :: Text
-  , cfgManual :: Text
   } deriving (Eq,Show,Generic)
 
 instance FromJSON Config where
