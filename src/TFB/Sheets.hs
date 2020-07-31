@@ -82,7 +82,7 @@ appendRow FormConfig{ cfgDocumentId=docId
                     , cfgResultSheet=sheet
                     , cfgFields=fs } ans = do
   let fields = map fdName fs
-      orderedAns = map (ans M.!) fields
+      orderedAns = mapMaybe (`M.lookup` ans) fields
   appendGS docId sheet orderedAns
 
 appendGS :: Text -> Text -> [FieldVal] -> IO Text
