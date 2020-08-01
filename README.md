@@ -11,9 +11,9 @@
 
 1. Create a new Google spreadsheet with two sheets: `config` and `result`.
 2. Fill a `config` sheet with questions
-![Config sheet](/getting-started-01-config.png)
+![Config sheet](getting-started-01-config.png)
 3. Prepare a `result` sheet for responses.
-![Result sheet](/getting-started-02-result.png)
+![Result sheet](getting-started-02-result.png)
 4. Share the spreadsheet with a user `demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com`.
 Copy the address of the spreadsheet.
 5. Start a [bot](https://t.me/tg_forms_bot). Send it a command `/newsheet
@@ -63,7 +63,7 @@ to your server. Please [contact me](#author) for details.
 
 ## Commercial license
 
-This software is licensed under [Affero GPL v3 or any later version](/LICENSE).
+This software is licensed under [Affero GPL v3 or any later version](LICENSE).
 This means that if you use the unmodified bot on your server or if you modify
 the bot you have to provide the source of the bot (or its modified version).
 
@@ -126,7 +126,7 @@ The geography file is a CSV file with the following fields.
 - `lat.1` - its latitude
 - `lon.1` - its longitude
 
-This repository contains an [example file](/example-geo.csv) with information
+This repository contains an [example file](example-geo.csv) with information
 about Russian cities in the required format. This information was
 [collected](https://github.com/Hackathon-on-Internet-freedom/tg-stat/blob/master/docs/geo.md)
 from Wikipedia.
