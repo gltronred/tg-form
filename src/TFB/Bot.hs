@@ -156,35 +156,33 @@ handleAction env@Env{ } act st@PreparingSheet{ stDocId=mdoc } = case act of
   NoOp -> pure st
   -- Cancel and stop
   Cancel -> become NotStarted
-  NewForm u@(UserId uid) d -> let
-    in st <# do
-    case d of
-      "" -> pure AskCurrent
-      _  -> do
-        let (segments, _query) = decodePath $ extractPath $ encodeUtf8 d
-            ident = maximumBy (comparing T.length) segments
-        fields <- liftIO $ parseConfig ident "config"
-        let code = "FFRM" <> toCode uid
-            uidS = T.pack $ show uid
-            form = FormConfig
-              { cfgCode = code
-              , cfgDocumentId = ident
-              , cfgConfigSheet = "config"
-              , cfgResultSheet = "result"
-              , cfgAuthor = u
-              , cfgFields = fields
-              }
-            conn = envConn env
-            link = "https://t.me/tg_forms_bot?start=" <> code
-        liftIO $ T.putStrLn $ "code=" <> code <> "; uid=" <> uidS
-        liftIO $ saveForm form conn
-        richReply $ T.intercalate "\n" $
-          "Parsed form with fields: " : formDesc M.empty form
-        richReply $ T.concat
-          [ "Form saved, you can send a link: [", link
-          , "](", link, ") or use a command `/start ", code, "`"
-          ]
-        pure NoOp
+  NewForm u@(UserId uid) d -> case d of
+    "" -> st <# pure AskCurrent
+    _  -> NotStarted <# do
+      let (segments, _query) = decodePath $ extractPath $ encodeUtf8 d
+          ident = maximumBy (comparing T.length) segments
+      fields <- liftIO $ parseConfig ident "config"
+      let code = "FFRM" <> toCode uid
+          uidS = T.pack $ show uid
+          form = FormConfig
+            { cfgCode = code
+            , cfgDocumentId = ident
+            , cfgConfigSheet = "config"
+            , cfgResultSheet = "result"
+            , cfgAuthor = u
+            , cfgFields = fields
+            }
+          conn = envConn env
+          link = "https://t.me/tg_forms_bot?start=" <> code
+      liftIO $ T.putStrLn $ "code=" <> code <> "; uid=" <> uidS
+      liftIO $ saveForm form conn
+      richReply $ T.intercalate "\n" $
+        "Parsed form with fields: " : formDesc M.empty form
+      richReply $ T.concat
+        [ "Form saved, you can send a link: [", link
+        , "](", link, ") or use a command `/start ", code, "`"
+        ]
+      pure NoOp
   AskCurrent -> case mdoc of
     Nothing -> st <# do
       richReply "Please, share your spreadsheet with `demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com` and send its address here"
