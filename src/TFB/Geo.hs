@@ -51,7 +51,7 @@ loadGeoData fname = do
 
 findNearest :: GeoDb -> Double -> Double -> (NamedCoord, Geo)
 findNearest db lat lon = (NamedCoord "" lat lon, minimumBy (comparing dist) db)
-  where dist Geo{ geoLat=lt, geoLon=ln } = (lt - lat)^2 + (ln - lon)^2
+  where dist Geo{ geoLat=lt, geoLon=ln } = (lt - lat)^(2::Int) + (ln - lon)^(2::Int)
 
 geo2loc :: LocPrecision -> (NamedCoord, Geo) -> NamedCoord
 geo2loc p (c,g) = case p of

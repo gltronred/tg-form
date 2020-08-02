@@ -36,9 +36,9 @@ sheetWorker Env{ envQueue=mq } = do
       MsgInfo form ans -> appendRow form ans
 
 parseConfig :: Text -> Text -> IO [FieldDef]
-parseConfig docId sheet = do
+parseConfig docId sheetName = do
   let range = "A:D"
-      req = spreadsheetsValuesGet docId $ sheet <> "!" <> range
+      req = spreadsheetsValuesGet docId $ sheetName <> "!" <> range
   lgr <- newLogger Debug stdout
   env <- newEnv
          <&> (envLogger .~ lgr)
@@ -76,11 +76,11 @@ parseEnumOptions = map (T.splitOn ";") . T.splitOn ";;"
 
 appendRow :: FormConfig -> Map Text FieldVal -> IO Text
 appendRow FormConfig{ cfgDocumentId=docId
-                    , cfgResultSheet=sheet
+                    , cfgResultSheet=sheetName
                     , cfgFields=fs } ans = do
   let fields = map fdName fs
       orderedAns = mapMaybe (`M.lookup` ans) fields
-  appendGS docId sheet orderedAns
+  appendGS docId sheetName orderedAns
 
 appendGS :: Text -> Text -> [FieldVal] -> IO Text
 appendGS sheetId name vals = do

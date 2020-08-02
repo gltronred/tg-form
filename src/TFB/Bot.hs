@@ -290,10 +290,10 @@ botUsage st mform = T.intercalate "\n" $
 
 -- TODO: add form author and title
 formDesc :: Map Text FieldVal -> FormConfig -> [Text]
-formDesc ans f = map (mkFieldDesc ans) (cfgFields f)
+formDesc ans f = map mkFieldDesc (cfgFields f)
   where
-    mkFieldDesc :: Map Text FieldVal -> FieldDef -> Text
-    mkFieldDesc ans FieldDef{ fdName=name, fdDesc=desc, fdType=ty } = let
+    mkFieldDesc :: FieldDef -> Text
+    mkFieldDesc FieldDef{ fdName=name, fdDesc=desc, fdType=ty } = let
       val = case M.lookup name ans of
         Nothing -> ""
         Just ValVoid -> ""
