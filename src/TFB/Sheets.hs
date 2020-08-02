@@ -11,27 +11,24 @@ import TFB.Types ( FieldType(..)
                  , NamedCoord(..)
                  , FormConfig(..)
                  , MsgItem(..))
-import TFB.Env (TFB,Env(Env,envConfig,envQueue))
+import TFB.Env (TFB,Env(Env,envQueue))
 
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad
 import Data.Aeson
-import qualified Data.ByteString.Lazy as LB
 import Data.Char
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text.Lazy.Encoding as ET
 import Network.Google.Sheets
 import Network.Google hiding (Env, Error)
 import System.IO (stdout)
 
 sheetWorker :: Env TFB -> IO ()
-sheetWorker Env{ envConfig=cfg, envQueue=mq } = do
+sheetWorker Env{ envQueue=mq } = do
   forever $ do
     msg <- atomically $ readTBQueue mq
     print msg
