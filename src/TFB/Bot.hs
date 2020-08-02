@@ -304,7 +304,12 @@ formDesc ans f = map (mkFieldDesc ans) (cfgFields f)
     mkTypeDesc FieldNum = "number"
     mkTypeDesc FieldText = "free form text"
     mkTypeDesc (FieldEnum _) = "fixed answer options"
-    mkTypeDesc (FieldLocation prec) = "location"
+    mkTypeDesc (FieldLocation prec) = "location " <> case prec of
+      PrecCoord -> "coordinates"
+      PrecCity  -> "city"
+      PrecMunicip -> "municipal formation"
+      PrecDistrict -> "municipal district"
+      PrecRegion -> "federal subject"
     mkTypeDesc FieldTime = "time"
     mkTypeDesc FieldSource = "telegram user id"
     mkTypeDesc FieldWelcome = "welcome text"
