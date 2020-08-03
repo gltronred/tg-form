@@ -1,6 +1,12 @@
 # Telegram Forms Bot - tg_forms_bot
 
-<a href="https://liberapay.com/gltronred/donate" target="_blank"><img src="https://img.shields.io/liberapay/receives/gltronred.svg?logo=liberapay" alt="Regular donation on Liberapay" ></a>
+[![Regular donation on Liberapay][liberapay-shield]][liberapay]
+[![One-time donation on Buy me a coffee][buymeacoffee-shield]][buymeacoffee]
+
+[liberapay-shield]: https://img.shields.io/liberapay/receives/gltronred.svg?logo=liberapay
+[liberapay]: https://liberapay.com/gltronred/donate
+[buymeacoffee-shield]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow
+[buymeacoffee]: https://buymeacoff.ee/gltronred
 
 1. Prepare a Google sheet with questions
 2. Send it to the [@tg_forms_bot](https://t.me/tg_forms_bot) and start collecting responses!
@@ -80,5 +86,3 @@ You can support my work on [liberapay](https://liberapay.com/gltronred/donate)
 donation).
 
 <a href="https://liberapay.com/gltronred/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>
-
-<a href="https://www.buymeacoffee.com/gltronred" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 128px !important;" ></a>
