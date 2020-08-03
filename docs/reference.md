@@ -22,17 +22,17 @@ A row for the question in `config` sheet has four columns:
 There are several types of questions you can ask.
 
 <table>
-<thead><tr><th>Type</th><th>Columns in `result`</th><th>Meaning</th></tr></thead>
+<thead><tr><th>Type</th><th>Columns</th><th>Meaning</th></tr></thead>
 <tbody>
-<tr><td>**welcome**</td><td>0 columns in `result`</td><td>Welcome text that is shown when the user starts a bot</td></tr>
-<tr><td>**time**</td><td>1 column</td><td>To save date-time of a response, no question is asked</td></tr>
-<tr><td>**user**</td><td>1 column</td><td>To save a user-id, no question is asked</td></tr>
-<tr><td>**text**</td><td>1 column</td><td>Any textual response</td></tr>
-<tr><td>**enum**</td><td>1 column</td><td>Keyboard with a fixed variants of input. The `extra` column contains a list of rows of keyboard delimited by a `;;`. Each row contains texts of buttons, delimited by a `;`. For example, `yes;no;;maybe`</td></tr>
-<tr><td>**int**</td><td>1 column</td><td>Integer</td></tr>
-<tr><td>**num**</td><td>1 column</td><td>Any number (e.g. `1.23`)</td></tr>
-<tr><td>**location**</td><td>2 columns - latitude, longitude</td><td>Coordinates of a location that user sends. The `extra` column contains precision (`coord`, `city`, `municip`, `district`, `region`) - coordinates that user sends will be rounded to coordinates of the nearest point from a list given in the [config file](#geography-file)</td></tr>
-<tr><td>**thanks**</td><td>0 columns</td><td>Text that is shown when the user finishes filling form</td></tr>
+<tr><td><b>welcome</b></td><td>0</td><td>Welcome text that is shown when the user starts a bot</td></tr>
+<tr><td><b>time</b></td><td>1</td><td>To save date-time of a response, no question is asked</td></tr>
+<tr><td><b>user</b></td><td>1</td><td>To save a user-id, no question is asked</td></tr>
+<tr><td><b>text</b></td><td>1</td><td>Any textual response</td></tr>
+<tr><td><b>enum</b></td><td>1</td><td>Keyboard with a fixed variants of input. The <pre>extra</pre> column contains a list of rows of keyboard delimited by a <pre>;;</pre>. Each row contains texts of buttons, delimited by a <pre>;</pre>. For example, <pre>yes;no;;maybe</pre></td></tr>
+<tr><td><b>int</b></td><td>1</td><td>Integer</td></tr>
+<tr><td><b>num</b></td><td>1</td><td>Any number (e.g. <pre>1.23</pre>)</td></tr>
+<tr><td><b>location</b></td><td>2: latitude, longitude</td><td>Coordinates of a location that user sends. The <pre>extra</pre> column contains precision (coord, city, municip, district, region) - coordinates that user sends will be rounded to coordinates of the nearest point from a list given in the [config file](docs/reference.md#geography-file)</td></tr>
+<tr><td><b>thanks</b></td><td>0</td><td>Text that is shown when the user finishes filling form</td></tr>
 </tbody>
 </table>
 
