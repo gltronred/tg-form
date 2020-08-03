@@ -19,7 +19,7 @@
 # Getting Started
 
 1. Create a new Google spreadsheet with two sheets: `config` and `result`.
-2. Fill a `config` sheet with questions
+2. Fill a `config` sheet with questions ([here](docs/reference.md#config-and-result-sheets) you can find all question types).
 ![Config sheet](getting-started-01-config.png)
 3. Prepare a `result` sheet for responses.
 ![Result sheet](getting-started-02-result.png)
