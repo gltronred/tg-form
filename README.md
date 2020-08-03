@@ -19,7 +19,7 @@
 # Getting Started
 
 1. Create a new Google spreadsheet with two sheets: `config` and `result`.
-2. Fill a `config` sheet with questions ([here](docs/reference.md#config-and-result-sheets) you can find all question types).
+2. Fill a `config` sheet with questions ([here](https://git.sr.ht/~rd/tg-form/tree/master/docs/reference.md#config-and-result-sheets) you can find all question types).
 ![Config sheet](getting-started-01-config.png)
 3. Prepare a `result` sheet for responses.
 ![Result sheet](getting-started-02-result.png)
@@ -58,7 +58,7 @@ The bot works on our servers. We do our best to make this process safe and
 smooth. But you can have higher requirements than we can provide.
 
 If you want to collect responses on your server, you can self-host your own
-version of the bot. Please read [the manual](docs/reference.md) on building and
+version of the bot. Please read [the manual](https://git.sr.ht/~rd/tg-form/tree/master/docs/reference.md) on building and
 deploying the bot.
 
 Also I can consult you about self-hosting the bot, or you can hire me to deploy
