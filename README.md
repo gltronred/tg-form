@@ -79,6 +79,6 @@ You can support my work on [liberapay](https://liberapay.com/gltronred/donate)
 (regular donations) or [buymeacoffee](https://buymeacoff.ee/gltronred) (one-time
 donation).
 
-<a href="https://liberapay.com/gltronred/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg" style="height: 51px !important;width: 217px !important;" ></a>
+<a href="https://liberapay.com/gltronred/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>
 
-<a href="https://www.buymeacoffee.com/gltronred" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
+<a href="https://www.buymeacoffee.com/gltronred" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 128px !important;" ></a>
