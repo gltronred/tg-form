@@ -83,6 +83,7 @@ You can also:
 - Report bugs and submit feature requests to the [issue tracker](https://todo.sr.ht/~rd/tg-form)
 - Chat with me and other users on [matrix](https://matrix.to/#/!ijqoycRMyvtVLHFCVh:matrix.org?via=matrix.org)
 - Subscribe to [mailing lists](https://sr.ht/~rd/tg-form/lists) and ask any questions
+- Explore the [source code](https://git.sr.ht/~rd/tg-form) of the program (or its [mirror](https://github.com/gltronred/tg-form))
 
 You can support my work on [liberapay](https://liberapay.com/gltronred/donate)
 (regular donations) or [buymeacoffee](https://buymeacoff.ee/gltronred) (one-time
