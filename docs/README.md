@@ -20,9 +20,9 @@
 
 1. Create a new Google spreadsheet with two sheets: `config` and `result`.
 2. Fill a `config` sheet with questions ([here](https://git.sr.ht/~rd/tg-form/tree/master/docs/reference.md#config-and-result-sheets) you can find all question types).
-![Config sheet](getting-started-01-config.png)
+![Config sheet](https://raw.githubusercontent.com/gltronred/tg-form/master/docs/getting-started-01-config.png)
 3. Prepare a `result` sheet for responses.
-![Result sheet](getting-started-02-result.png)
+![Result sheet](https://raw.githubusercontent.com/gltronred/tg-form/master/docs/getting-started-01-config.png)
 4. Share the spreadsheet with a user `demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com`.
 5. Copy the address of your spreadsheet.
 6. Start a [bot](https://t.me/tg_forms_bot). Send it a command `/newsheet
