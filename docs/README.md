@@ -26,7 +26,7 @@
 4. Share the spreadsheet with a user `demo-bot-account@ozi-tg-cec.iam.gserviceaccount.com`.
 5. Copy the address of your spreadsheet.
 6. Start a [bot](https://t.me/tg_forms_bot). Send it a command `/newsheet
-<address-of-spreadsheet>` and it will reply with a link.
+address-of-spreadsheet` and it will reply with a link.
 7. Now you can send this link to your audience and start collecting responses.
 
 You can fill this form yourself and leave a feedback here: https://t.me/tg_forms_bot?start=TESTFORM
